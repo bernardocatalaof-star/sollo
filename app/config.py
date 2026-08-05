@@ -15,14 +15,25 @@ class Settings(BaseSettings):
     google_sheet_id: str = ""
     google_sheet_worksheet: str = "Bookings"
 
-    col_external_id: str = "Reservation ID"
-    col_guest_name: str = "Guest Name"
-    col_cabin: str = "Cabin"
-    col_check_in: str = "Check-in"
-    col_check_out: str = "Check-out"
-    col_total_price: str = "Total Price"
-    col_booking_source: str = "Source"
-    col_status: str = "Status"
+    col_external_id: str = "reference"
+    col_guest_name: str = ""  # leave blank to compose from first/last name columns below
+    col_customer_first_name: str = "customer_first_name"
+    col_customer_last_name: str = "customer_last_name"
+    col_cabin: str = "products"
+    col_check_in: str = "start_on"
+    col_check_out: str = "end_on"
+    col_total_price: str = "net_paid"
+    col_booking_source: str = "sales_channel"
+    col_status: str = "state"
+
+    # Only rows whose status column matches one of these (case-insensitive) are
+    # synced as real, billable stays -- everything else (cancelled, pending, quote,
+    # etc.) is skipped entirely.
+    billable_states: str = "completed"
+
+    @property
+    def billable_states_set(self) -> set[str]:
+        return {s.strip().lower() for s in self.billable_states.split(",") if s.strip()}
 
     # Fee schedule (EUR)
     cleaning_fee_standard: float = 33.0

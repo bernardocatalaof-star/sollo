@@ -11,6 +11,8 @@ Switching modes or adjusting the column mapping is purely a .env change -- no co
 import csv
 import hashlib
 import io
+import json
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
@@ -27,6 +29,7 @@ class SyncResult:
     created: int = 0
     updated: int = 0
     skipped: int = 0
+    removed: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -64,14 +67,17 @@ def fetch_rows() -> list[dict]:
     raise ValueError(f"Unknown SHEETS_SOURCE_MODE: {mode!r}")
 
 
-def _parse_date(value: str) -> date:
+def _parse_date(value) -> date:
+    if isinstance(value, datetime):
+        return value.date()
     if isinstance(value, date):
         return value
     text = str(value).strip()
+    # Unambiguous ISO date/datetime (e.g. "2026-08-01" or "2026-08-01T14:00:00Z") --
+    # checked first, using just the date prefix, so it can't be misread as
+    # day-first by the dayfirst fallback below.
     try:
-        # Unambiguous ISO format (what Google Sheets exports by default) --
-        # parsed first so it can't be misread as day-first by the fallback below.
-        return date.fromisoformat(text)
+        return date.fromisoformat(text[:10])
     except ValueError:
         pass
     # European-style dates (e.g. 05/08/2026 = 5 August) are day-first, not month-first.
@@ -95,9 +101,50 @@ def _row_external_id(row: dict) -> str:
     # an explicit reservation ID still dedupe correctly on repeat syncs.
     basis = "|".join(
         str(row.get(col, ""))
-        for col in (settings.col_cabin, settings.col_guest_name, settings.col_check_in, settings.col_check_out)
+        for col in (settings.col_cabin, settings.col_check_in, settings.col_check_out)
     )
     return "auto-" + hashlib.sha1(basis.encode("utf-8")).hexdigest()[:16]
+
+
+def _resolve_guest_name(row: dict) -> str:
+    if settings.col_guest_name:
+        name = str(row.get(settings.col_guest_name, "")).strip()
+        if name:
+            return name
+    first = str(row.get(settings.col_customer_first_name, "")).strip()
+    last = str(row.get(settings.col_customer_last_name, "")).strip()
+    return " ".join(part for part in (first, last) if part)
+
+
+def _extract_cabin_name(raw) -> str:
+    """Pulls a cabin/unit name out of a `products`/`variants`-style column.
+
+    Handles a plain name ("Cabin 1"), a JSON list/dict from platforms that export
+    the product line items as structured data, and trims trailing quantity
+    annotations like " x1" or " (Qty: 1)".
+    """
+    text = str(raw or "").strip()
+    if not text:
+        return "Unassigned"
+
+    if text[0] in "[{":
+        try:
+            data = json.loads(text)
+            if isinstance(data, list) and data:
+                first = data[0]
+                text = first.get("name", str(first)) if isinstance(first, dict) else str(first)
+            elif isinstance(data, dict):
+                text = str(data.get("name", text))
+        except json.JSONDecodeError:
+            pass
+
+    text = re.sub(r"\s*[\(\[]?\s*x\s*\d+\s*[\)\]]?\s*$", "", text, flags=re.IGNORECASE).strip()
+    return text or "Unassigned"
+
+
+def _row_is_billable(row: dict) -> bool:
+    status = str(row.get(settings.col_status, "")).strip().lower()
+    return status in settings.billable_states_set
 
 
 def _get_or_create_cabin(db: Session, name: str) -> Cabin:
@@ -115,6 +162,20 @@ def sync_bookings(db: Session) -> SyncResult:
     rows = fetch_rows()
 
     for row in rows:
+        if not _row_is_billable(row):
+            # A booking that was previously synced as billable (e.g. "completed")
+            # can later flip to a non-billable state (cancelled, refunded, ...).
+            # Remove any such stale record so it stops counting towards revenue.
+            # Uses session.delete() rather than a bulk .delete() so the
+            # cascade="all, delete-orphan" on Booking.flags actually fires.
+            external_id = _row_external_id(row)
+            stale = db.query(Booking).filter(Booking.external_id == external_id).first()
+            if stale:
+                db.delete(stale)
+                result.removed += 1
+            result.skipped += 1
+            continue
+
         try:
             external_id = _row_external_id(row)
             check_in = _parse_date(row[settings.col_check_in])
@@ -124,12 +185,12 @@ def sync_bookings(db: Session) -> SyncResult:
             result.skipped += 1
             continue
 
-        cabin = _get_or_create_cabin(db, row.get(settings.col_cabin, ""))
+        cabin = _get_or_create_cabin(db, _extract_cabin_name(row.get(settings.col_cabin, "")))
 
         existing = db.query(Booking).filter(Booking.external_id == external_id).first()
         values = dict(
             cabin_id=cabin.id,
-            guest_name=str(row.get(settings.col_guest_name, "")).strip(),
+            guest_name=_resolve_guest_name(row),
             check_in=check_in,
             check_out=check_out,
             total_price=_parse_price(row.get(settings.col_total_price)),

@@ -68,26 +68,47 @@ Note: this makes the sheet's data readable by anyone with the link.
 ### Matching your Sheet's columns
 
 The app maps its internal fields to your Sheet's actual column headers via `.env` —
-no code changes needed:
+no code changes needed. The defaults already match a reservations-platform export
+(the kind with columns like `reference`, `state`, `products`, `start_on`, `end_on`,
+`net_paid`, `sales_channel`, ...):
 
 ```
-COL_EXTERNAL_ID=Reservation ID
-COL_GUEST_NAME=Guest Name
-COL_CABIN=Cabin
-COL_CHECK_IN=Check-in
-COL_CHECK_OUT=Check-out
-COL_TOTAL_PRICE=Total Price
-COL_BOOKING_SOURCE=Source
-COL_STATUS=Status
+COL_EXTERNAL_ID=reference
+COL_GUEST_NAME=
+COL_CUSTOMER_FIRST_NAME=customer_first_name
+COL_CUSTOMER_LAST_NAME=customer_last_name
+COL_CABIN=products
+COL_CHECK_IN=start_on
+COL_CHECK_OUT=end_on
+COL_TOTAL_PRICE=net_paid
+COL_BOOKING_SOURCE=sales_channel
+COL_STATUS=state
+BILLABLE_STATES=completed
 ```
 
-Just change the values on the right to match your actual headers. If your sheet has
-no unique reservation ID column, leave `COL_EXTERNAL_ID` pointing at a (possibly
-empty) column — the app falls back to a stable ID derived from cabin + guest + dates
-so repeat syncs still update rather than duplicate rows.
+If your sheet instead has one plain "Guest Name" column, set `COL_GUEST_NAME` to it
+and the first/last name columns are ignored. If there's no unique reservation ID
+column, leave `COL_EXTERNAL_ID` empty — the app falls back to a stable ID derived
+from cabin + check-in + check-out so repeat syncs still update rather than
+duplicate rows.
 
-Dates are parsed as ISO (`YYYY-MM-DD`) first, then as day-first (`DD/MM/YYYY`), which
-covers both Google Sheets' default export format and typical European sheets.
+`COL_STATUS` / `BILLABLE_STATES` control which rows count at all: only rows whose
+status matches one of the comma-separated `BILLABLE_STATES` values (case-insensitive)
+are synced as real stays — everything else (cancelled, pending, quote, refunded...)
+is skipped, and if a previously-synced booking's status later changes to a
+non-billable one, it's automatically removed on the next sync so it stops counting
+towards revenue.
+
+`COL_CABIN` (typically a `products`/`variants`-style column from booking platforms)
+is parsed defensively: it handles a plain name ("Cabin 1"), a JSON list/dict
+(`[{"name": "Cabin 1"}]`), and strips trailing quantity annotations like " x1". If
+your platform's export format is different, check `_extract_cabin_name()` in
+`app/sheets_sync.py` after a first sync — if cabin names look wrong on the
+Bookings page, tell me the raw format and I'll adjust the parser.
+
+Dates are parsed as ISO (`YYYY-MM-DD`, including full timestamps like
+`2026-08-01T14:00:00Z`) first, then as day-first (`DD/MM/YYYY`), which covers both
+platform exports and typical European sheets.
 
 ## Assumptions worth knowing about
 
@@ -100,6 +121,9 @@ covers both Google Sheets' default export format and typical European sheets.
 - Revenue and landowner costs, by contrast, are attributed to the checkout month as a
   whole (matches how the cleaning fee is billed) — a stay that spans a month
   boundary shows up in occupancy for both months but is billed in one.
+- **Revenue** uses `net_paid` (actual amount collected, net of refunds) rather than
+  the full quoted `total` — change `COL_TOTAL_PRICE` in `.env` if you'd rather
+  recognize revenue on the full booked price regardless of payment status.
 
 ## Project layout
 

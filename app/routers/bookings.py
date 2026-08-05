@@ -20,6 +20,7 @@ def list_bookings(
     created: int = 0,
     updated: int = 0,
     skipped: int = 0,
+    removed: int = 0,
     db: Session = Depends(get_db),
 ):
     query = db.query(Booking).order_by(Booking.check_in.desc())
@@ -30,7 +31,10 @@ def list_bookings(
     cabins = db.query(Cabin).order_by(Cabin.name).all()
     sync_message = None
     if synced:
-        sync_message = f"Sync complete: {created} created, {updated} updated, {skipped} skipped."
+        sync_message = (
+            f"Sync complete: {created} created, {updated} updated, "
+            f"{skipped} skipped (of which {removed} removed as no longer billable)."
+        )
     return templates.TemplateResponse(
         "bookings.html",
         {
@@ -68,6 +72,8 @@ def add_flag(
 def trigger_sync(db: Session = Depends(get_db)):
     result = sync_bookings(db)
     return RedirectResponse(
-        f"/bookings?synced=1&created={result.created}&updated={result.updated}&skipped={result.skipped}",
+        "/bookings?synced=1"
+        f"&created={result.created}&updated={result.updated}"
+        f"&skipped={result.skipped}&removed={result.removed}",
         status_code=303,
     )
