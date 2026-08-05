@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ booking.guest_name }} — Sollo{% endblock %}
+{% block content %}
+<p><a href="/bookings" class="muted">&larr; Back to bookings</a></p>
+<h1>{{ booking.guest_name or "Guest" }}</h1>
+<p class="muted">{{ booking.cabin.name }} · {{ booking.check_in }} → {{ booking.check_out }} · {{ booking.booking_source or "unknown source" }}</p>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Revenue</div>
+    <div class="value">€{{ "%.2f"|format(booking.total_price) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Nights occupied</div>
+    <div class="value">{{ fees.nights }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Overnight fee (land)</div>
+    <div class="value">€{{ "%.2f"|format(fees.overnight_fee) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Cleaning fee</div>
+    <div class="value">
+      €{{ "%.2f"|format(fees.cleaning_fee) }}
+      {% if fees.is_holiday_cleaning %}<div class="badge holiday">public holiday rate</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<h2>Issues & occurrences</h2>
+<ul class="flags-list">
+  {% for flag in booking.flags %}
+  <li>
+    <strong>{{ flag.category }}</strong> — {{ flag.note }}
+    <div class="muted">{{ flag.created_at.strftime("%Y-%m-%d %H:%M") }}</div>
+  </li>
+  {% else %}
+  <li class="muted">No flags recorded for this stay.</li>
+  {% endfor %}
+</ul>
+
+<form class="inline" method="post" action="/bookings/{{ booking.id }}/flags">
+  <select name="category">
+    <option value="issue">Issue</option>
+    <option value="damage">Damage</option>
+    <option value="complaint">Complaint</option>
+    <option value="note">Note</option>
+  </select>
+  <input type="text" name="note" placeholder="Describe what happened" style="flex:1; min-width:250px;" />
+  <button type="submit">Add flag</button>
+</form>
+{% endblock %}

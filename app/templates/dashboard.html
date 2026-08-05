@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Sollo{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="muted">This month so far ({{ year }}-{{ "%02d"|format(month) }}) — full close-out on the <a href="/monthly">Monthly page</a>.</p>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Revenue</div>
+    <div class="value">€{{ "%.2f"|format(summary.total_revenue) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Costs (landowner + supplies)</div>
+    <div class="value">€{{ "%.2f"|format(summary.total_costs) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Profit</div>
+    <div class="value {{ 'good' if summary.profit >= 0 else 'bad' }}">€{{ "%.2f"|format(summary.profit) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Occupancy</div>
+    <div class="value">{{ "%.0f"|format(summary.occupancy_rate * 100) }}%</div>
+  </div>
+  <div class="card">
+    <div class="label">Owed to landowner</div>
+    <div class="value">€{{ "%.2f"|format(statement.total_owed) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Flagged stays</div>
+    <div class="value {{ 'bad' if summary.flagged_stays else '' }}">{{ summary.flagged_stays }}</div>
+  </div>
+</div>
+
+<form class="inline" method="post" action="/sync">
+  <button type="submit">Sync bookings from Sheet</button>
+</form>
+{% endblock %}

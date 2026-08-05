@@ -1,0 +1,102 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --border: #2a2e38;
+  --text: #e6e8ec;
+  --muted: #8b90a0;
+  --accent: #4f8cff;
+  --good: #3ecf8e;
+  --bad: #ef5a5a;
+  --warn: #e8b339;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.topnav {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.topnav a { color: var(--text); text-decoration: none; }
+.topnav a:hover { color: var(--accent); }
+.topnav .brand { font-weight: 700; margin-right: 1rem; }
+
+.container { padding: 2rem; max-width: 1100px; margin: 0 auto; }
+
+h1, h2, h3 { font-weight: 600; }
+
+.cards { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  min-width: 180px;
+  flex: 1;
+}
+
+.card .label { color: var(--muted); font-size: 0.85rem; }
+.card .value { font-size: 1.6rem; font-weight: 700; margin-top: 0.25rem; }
+.card .value.good { color: var(--good); }
+.card .value.bad { color: var(--bad); }
+
+table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+th, td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 500; font-size: 0.85rem; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+a.rowlink { color: var(--text); text-decoration: none; }
+a.rowlink:hover { color: var(--accent); }
+
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: rgba(239,90,90,0.15);
+  color: var(--bad);
+}
+
+.badge.holiday { background: rgba(232,179,57,0.15); color: var(--warn); }
+
+form.inline { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin: 1rem 0; }
+input, select, textarea, button {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.9rem;
+}
+button {
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  color: white;
+  font-weight: 600;
+}
+button:hover { opacity: 0.9; }
+button.secondary { background: var(--panel); border: 1px solid var(--border); color: var(--text); }
+button.danger { background: var(--bad); }
+
+.flags-list { list-style: none; padding: 0; }
+.flags-list li { padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.5rem; }
+
+.notice { background: rgba(79,140,255,0.1); border: 1px solid var(--accent); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; }
+
+.month-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.month-nav a { color: var(--accent); text-decoration: none; }
+
+.muted { color: var(--muted); }

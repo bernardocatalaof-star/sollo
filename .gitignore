@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/sollo.db
+data/service_account.json
+.pytest_cache/

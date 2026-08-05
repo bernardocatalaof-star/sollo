@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Monthly Close-out — Sollo{% endblock %}
+{% block content %}
+<h1>Monthly Close-out</h1>
+
+<div class="month-nav">
+  <a href="/monthly?year={{ prev_year }}&month={{ prev_month }}">&larr; prev</a>
+  <strong>{{ year }}-{{ "%02d"|format(month) }}</strong>
+  <a href="/monthly?year={{ next_year }}&month={{ next_month }}">next &rarr;</a>
+</div>
+
+<h2>Owed to landowner</h2>
+<p class="muted">Land (overnight) + cleaning fees for stays that checked out this month.</p>
+<table>
+  <thead><tr><th>Cabin</th><th>Nights</th><th>Cleanings</th><th>Overnight total</th><th>Cleaning total</th><th>Owed</th></tr></thead>
+  <tbody>
+    {% for c in statement.by_cabin %}
+    <tr>
+      <td>{{ c.cabin_name }}</td>
+      <td>{{ c.nights }}</td>
+      <td>{{ c.cleanings }}</td>
+      <td>€{{ "%.2f"|format(c.overnight_total) }}</td>
+      <td>€{{ "%.2f"|format(c.cleaning_total) }}</td>
+      <td><strong>€{{ "%.2f"|format(c.total_owed) }}</strong></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">No stays checked out this month.</td></tr>
+    {% endfor %}
+  </tbody>
+  {% if statement.by_cabin %}
+  <tfoot>
+    <tr><td colspan="5"><strong>Total owed</strong></td><td><strong>€{{ "%.2f"|format(statement.total_owed) }}</strong></td></tr>
+  </tfoot>
+  {% endif %}
+</table>
+
+<h2>Financial summary</h2>
+<div class="cards">
+  <div class="card"><div class="label">Revenue</div><div class="value">€{{ "%.2f"|format(summary.total_revenue) }}</div></div>
+  <div class="card"><div class="label">Landowner costs</div><div class="value">€{{ "%.2f"|format(summary.total_landowner_costs) }}</div></div>
+  <div class="card"><div class="label">Supply/other costs</div><div class="value">€{{ "%.2f"|format(summary.total_supply_costs) }}</div></div>
+  <div class="card"><div class="label">Total costs</div><div class="value">€{{ "%.2f"|format(summary.total_costs) }}</div></div>
+  <div class="card"><div class="label">Profit</div><div class="value {{ 'good' if summary.profit >= 0 else 'bad' }}">€{{ "%.2f"|format(summary.profit) }}</div></div>
+  <div class="card"><div class="label">Occupancy rate</div><div class="value">{{ "%.1f"|format(summary.occupancy_rate * 100) }}%</div>
+    <div class="muted">{{ summary.nights_occupied }} / {{ summary.nights_available }} nights</div>
+  </div>
+  <div class="card"><div class="label">Stays closed out</div><div class="value">{{ summary.stays_closed }}</div></div>
+  <div class="card"><div class="label">Flagged stays</div><div class="value {{ 'bad' if summary.flagged_stays else '' }}">{{ summary.flagged_stays }}</div></div>
+</div>
+{% endblock %}

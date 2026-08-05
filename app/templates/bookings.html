@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Bookings — Sollo{% endblock %}
+{% block content %}
+<h1>Bookings</h1>
+
+{% if sync_message %}<div class="notice">{{ sync_message }}</div>{% endif %}
+
+<form class="inline" method="get" action="/bookings">
+  <select name="cabin_id" onchange="this.form.submit()">
+    <option value="">All cabins</option>
+    {% for c in cabins %}
+      <option value="{{ c.id }}" {{ "selected" if c.id == selected_cabin_id else "" }}>{{ c.name }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+<form class="inline" method="post" action="/sync">
+  <button type="submit">Sync from Sheet</button>
+</form>
+
+<table>
+  <thead>
+    <tr>
+      <th>Guest</th>
+      <th>Cabin</th>
+      <th>Check-in</th>
+      <th>Check-out</th>
+      <th>Nights</th>
+      <th>Revenue</th>
+      <th>Land + Cleaning</th>
+      <th>Flags</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for booking, fees in rows %}
+    <tr>
+      <td><a class="rowlink" href="/bookings/{{ booking.id }}">{{ booking.guest_name or "—" }}</a></td>
+      <td>{{ booking.cabin.name }}</td>
+      <td>{{ booking.check_in }}</td>
+      <td>{{ booking.check_out }}</td>
+      <td>{{ fees.nights }}</td>
+      <td>€{{ "%.2f"|format(booking.total_price) }}</td>
+      <td>
+        €{{ "%.2f"|format(fees.total_owed) }}
+        {% if fees.is_holiday_cleaning %}<span class="badge holiday">holiday clean</span>{% endif %}
+      </td>
+      <td>{% if booking.flags %}<span class="badge">{{ booking.flags|length }}</span>{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="muted">No bookings yet — try "Sync from Sheet".</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
