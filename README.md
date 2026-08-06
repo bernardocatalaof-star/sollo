@@ -192,10 +192,9 @@ file would lose your data — use a real hosted database instead:
 1. Go to [neon.tech](https://neon.tech) and sign up (free tier is enough).
 2. Create a new project — accept the defaults.
 3. On the project's dashboard, find the **connection string** — it looks like
-   `postgresql://user:password@host/dbname?sslmode=require`. Copy it. You'll paste
-   it into Render in step 3 below.
-4. Change the `postgresql://` at the very start to `postgresql+psycopg://` (the app
-   needs that exact prefix) — the rest of the string stays the same.
+   `postgresql://user:password@host/dbname?sslmode=require`. Copy it exactly as
+   shown, no editing needed — you'll paste it into Render's `DATABASE_URL` in step 3
+   below as-is.
 
 ### 2. Create the Render web service
 
