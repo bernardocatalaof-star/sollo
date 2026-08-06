@@ -1,3 +1,4 @@
+from datetime import date
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -14,11 +15,49 @@ from app.sheets_sync import GoogleNotConnectedError, oauth_is_connected, sync_bo
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
+_SORTABLE_COLUMNS = {"check_in": Booking.check_in, "check_out": Booking.check_out}
+
+
+def query_bookings(
+    db: Session,
+    cabin_id: int | None = None,
+    check_in_from: date | None = None,
+    check_in_to: date | None = None,
+    check_out_from: date | None = None,
+    check_out_to: date | None = None,
+    sort: str = "check_in",
+    order: str = "desc",
+) -> tuple[list[Booking], str, str]:
+    """Returns (bookings, normalized_sort, normalized_order)."""
+    sort = sort if sort in _SORTABLE_COLUMNS else "check_in"
+    order = "asc" if order == "asc" else "desc"
+    sort_column = _SORTABLE_COLUMNS[sort]
+
+    query = db.query(Booking).order_by(sort_column.asc() if order == "asc" else sort_column.desc())
+    if cabin_id:
+        query = query.filter(Booking.cabin_id == cabin_id)
+    if check_in_from:
+        query = query.filter(Booking.check_in >= check_in_from)
+    if check_in_to:
+        query = query.filter(Booking.check_in <= check_in_to)
+    if check_out_from:
+        query = query.filter(Booking.check_out >= check_out_from)
+    if check_out_to:
+        query = query.filter(Booking.check_out <= check_out_to)
+
+    return query.all(), sort, order
+
 
 @router.get("/bookings")
 def list_bookings(
     request: Request,
     cabin_id: int | None = None,
+    check_in_from: date | None = None,
+    check_in_to: date | None = None,
+    check_out_from: date | None = None,
+    check_out_to: date | None = None,
+    sort: str = "check_in",
+    order: str = "desc",
     synced: int | None = None,
     created: int = 0,
     updated: int = 0,
@@ -28,10 +67,9 @@ def list_bookings(
     google_connected: int | None = None,
     db: Session = Depends(get_db),
 ):
-    query = db.query(Booking).order_by(Booking.check_in.desc())
-    if cabin_id:
-        query = query.filter(Booking.cabin_id == cabin_id)
-    bookings = query.all()
+    bookings, sort, order = query_bookings(
+        db, cabin_id, check_in_from, check_in_to, check_out_from, check_out_to, sort, order
+    )
     rows = [(b, calculate_booking_fees(b)) for b in bookings]
     cabins = db.query(Cabin).order_by(Cabin.name).all()
 
@@ -53,6 +91,12 @@ def list_bookings(
             "rows": rows,
             "cabins": cabins,
             "selected_cabin_id": cabin_id,
+            "check_in_from": check_in_from,
+            "check_in_to": check_in_to,
+            "check_out_from": check_out_from,
+            "check_out_to": check_out_to,
+            "sort": sort,
+            "order": order,
             "sync_message": sync_message,
             "sync_error": error,
             "needs_google_connect": needs_google_connect,

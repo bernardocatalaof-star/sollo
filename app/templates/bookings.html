@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Bookings — Sollo{% endblock %}
+
+{% macro sort_link(column, label) -%}
+<a class="sortlink" href="/bookings?sort={{ column }}&order={{ 'asc' if sort == column and order == 'desc' else 'desc' }}{% if selected_cabin_id %}&cabin_id={{ selected_cabin_id }}{% endif %}{% if check_in_from %}&check_in_from={{ check_in_from }}{% endif %}{% if check_in_to %}&check_in_to={{ check_in_to }}{% endif %}{% if check_out_from %}&check_out_from={{ check_out_from }}{% endif %}{% if check_out_to %}&check_out_to={{ check_out_to }}{% endif %}">{{ label }}{% if sort == column %} {{ "▲" if order == "asc" else "▼" }}{% endif %}</a>
+{%- endmacro %}
+
 {% block content %}
 <h1>Bookings</h1>
 
@@ -13,13 +18,24 @@
 </div>
 {% endif %}
 
-<form class="inline" method="get" action="/bookings">
-  <select name="cabin_id" onchange="this.form.submit()">
+<form class="filters" method="get" action="/bookings">
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <input type="hidden" name="order" value="{{ order }}">
+
+  <select name="cabin_id">
     <option value="">All cabins</option>
     {% for c in cabins %}
       <option value="{{ c.id }}" {{ "selected" if c.id == selected_cabin_id else "" }}>{{ c.name }}</option>
     {% endfor %}
   </select>
+
+  <label>Check-in from <input type="date" name="check_in_from" value="{{ check_in_from or '' }}"></label>
+  <label>to <input type="date" name="check_in_to" value="{{ check_in_to or '' }}"></label>
+  <label>Check-out from <input type="date" name="check_out_from" value="{{ check_out_from or '' }}"></label>
+  <label>to <input type="date" name="check_out_to" value="{{ check_out_to or '' }}"></label>
+
+  <button type="submit">Filter</button>
+  <a href="/bookings">Clear filters</a>
 </form>
 
 <form class="inline" method="post" action="/sync">
@@ -31,8 +47,8 @@
     <tr>
       <th>Guest</th>
       <th>Cabin</th>
-      <th>Check-in</th>
-      <th>Check-out</th>
+      <th>{{ sort_link("check_in", "Check-in") }}</th>
+      <th>{{ sort_link("check_out", "Check-out") }}</th>
       <th>Nights</th>
       <th>Revenue</th>
       <th>Land + Cleaning</th>
