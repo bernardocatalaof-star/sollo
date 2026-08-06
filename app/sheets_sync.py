@@ -14,7 +14,6 @@ import csv
 import hashlib
 import io
 import json
-import os
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -60,51 +59,81 @@ def _fetch_rows_service_account() -> list[dict]:
 
 
 _OAUTH_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+OAUTH_TOKEN_SETTING_KEY = "google_oauth_token"
 
 
-def _get_oauth_credentials():
-    """Authenticates as the signed-in Google user (not a service account).
+class GoogleNotConnectedError(RuntimeError):
+    """Raised when oauth_user mode is selected but no Google account is linked yet."""
 
-    Not affected by org policies like iam.disableServiceAccountKeyCreation, since
-    no service account key is involved -- this is the same OAuth flow any desktop
-    app uses. The user consents once in a browser; after that a refresh token is
-    cached to disk so future syncs don't need any interaction.
+
+def _load_oauth_client_config() -> dict:
+    raw = settings.google_oauth_client_secret_json.strip()
+    if raw.startswith("{"):
+        return json.loads(raw)
+    with open(raw, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def build_oauth_flow(redirect_uri: str | None = None):
+    """Builds the web OAuth flow used by the /auth/google routes.
+
+    Uses a plain "Web application" OAuth client (not a service account, not a
+    desktop client) so the whole login happens as a browser redirect -- no local
+    server, no terminal, works identically whether the app runs on your laptop
+    or a hosting platform. Not affected by org policies like
+    iam.disableServiceAccountKeyCreation, since no service account key exists here.
     """
+    from google_auth_oauthlib.flow import Flow
+
+    return Flow.from_client_config(
+        _load_oauth_client_config(),
+        scopes=_OAUTH_SCOPES,
+        redirect_uri=redirect_uri or settings.google_oauth_redirect_uri,
+    )
+
+
+def oauth_is_connected(db: Session) -> bool:
+    from app.settings_store import get_setting
+
+    return get_setting(db, OAUTH_TOKEN_SETTING_KEY) is not None
+
+
+def _get_oauth_credentials(db: Session):
     import google.auth.transport.requests
     from google.oauth2.credentials import Credentials as UserCredentials
-    from google_auth_oauthlib.flow import InstalledAppFlow
 
-    token_path = settings.google_oauth_token_path
-    creds = None
-    if os.path.exists(token_path):
-        creds = UserCredentials.from_authorized_user_file(token_path, _OAUTH_SCOPES)
+    from app.settings_store import get_setting, set_setting
 
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
+    token_json = get_setting(db, OAUTH_TOKEN_SETTING_KEY)
+    if not token_json:
+        raise GoogleNotConnectedError(
+            "No Google account connected yet -- visit /auth/google to connect one."
+        )
+
+    creds = UserCredentials.from_authorized_user_info(json.loads(token_json), _OAUTH_SCOPES)
+    if not creds.valid:
+        if creds.expired and creds.refresh_token:
             creds.refresh(google.auth.transport.requests.Request())
+            set_setting(db, OAUTH_TOKEN_SETTING_KEY, creds.to_json())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                settings.google_oauth_client_secret_json, _OAUTH_SCOPES
+            raise GoogleNotConnectedError(
+                "Google account connection expired -- visit /auth/google to reconnect it."
             )
-            creds = flow.run_local_server(port=0)
-        os.makedirs(os.path.dirname(token_path) or ".", exist_ok=True)
-        with open(token_path, "w", encoding="utf-8") as f:
-            f.write(creds.to_json())
 
     return creds
 
 
-def _fetch_rows_oauth_user() -> list[dict]:
+def _fetch_rows_oauth_user(db: Session) -> list[dict]:
     import gspread
 
-    creds = _get_oauth_credentials()
+    creds = _get_oauth_credentials(db)
     client = gspread.authorize(creds)
     sheet = client.open_by_key(settings.google_sheet_id)
     worksheet = sheet.worksheet(settings.google_sheet_worksheet)
     return worksheet.get_all_records()
 
 
-def fetch_rows() -> list[dict]:
+def fetch_rows(db: Session) -> list[dict]:
     mode = settings.sheets_source_mode
     if mode == "local_csv":
         return _fetch_rows_local_csv()
@@ -113,7 +142,7 @@ def fetch_rows() -> list[dict]:
     if mode == "service_account":
         return _fetch_rows_service_account()
     if mode == "oauth_user":
-        return _fetch_rows_oauth_user()
+        return _fetch_rows_oauth_user(db)
     raise ValueError(f"Unknown SHEETS_SOURCE_MODE: {mode!r}")
 
 
@@ -209,7 +238,7 @@ def _get_or_create_cabin(db: Session, name: str) -> Cabin:
 
 def sync_bookings(db: Session) -> SyncResult:
     result = SyncResult()
-    rows = fetch_rows()
+    rows = fetch_rows(db)
 
     for row in rows:
         if not _row_is_billable(row):

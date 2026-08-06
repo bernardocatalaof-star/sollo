@@ -4,6 +4,14 @@
 <h1>Bookings</h1>
 
 {% if sync_message %}<div class="notice">{{ sync_message }}</div>{% endif %}
+{% if sync_error %}<div class="notice error">{{ sync_error }}</div>{% endif %}
+
+{% if needs_google_connect %}
+<div class="notice">
+  Your Google account isn't connected yet.
+  <a href="/auth/google"><strong>Click here to connect it</strong></a> before syncing.
+</div>
+{% endif %}
 
 <form class="inline" method="get" action="/bookings">
   <select name="cabin_id" onchange="this.form.submit()">
@@ -15,7 +23,7 @@
 </form>
 
 <form class="inline" method="post" action="/sync">
-  <button type="submit">Sync from Sheet</button>
+  <button type="submit" {{ "disabled" if needs_google_connect else "" }}>Sync from Sheet</button>
 </form>
 
 <table>

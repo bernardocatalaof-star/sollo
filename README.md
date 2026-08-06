@@ -71,22 +71,34 @@ Cloud organization enforces and that you likely can't override yourself — use
 Option C instead. It reaches the same private sheet without a service account key.
 
 **Option C — OAuth as yourself (private, works even when service account keys are
-blocked):**
+blocked, and works with no terminal at all if the app is hosted — see the
+deployment section below):**
 1. Cloud Console → APIs & Services → **OAuth consent screen** → configure it (User
    type "External" is fine for personal use; add yourself under "Test users").
 2. Add the scope `.../auth/spreadsheets.readonly`.
 3. Cloud Console → APIs & Services → **Credentials** → Create Credentials → **OAuth
-   client ID** → Application type **Desktop app** → Create → download the JSON.
-4. Save it to `data/oauth_client_secret.json` (already git-ignored).
+   client ID** → Application type **Web application** (not Desktop app) → under
+   "Authorized redirect URIs" add the exact URL from `GOOGLE_OAUTH_REDIRECT_URI` in
+   `.env` (e.g. `https://your-app.onrender.com/auth/google/callback` once hosted, or
+   `http://127.0.0.1:8000/auth/google/callback` for local testing) → Create → download
+   the JSON.
+4. Either save it to `data/oauth_client_secret.json` (git-ignored), or paste its raw
+   JSON content directly into the `GOOGLE_OAUTH_CLIENT_SECRET_JSON` environment
+   variable — the app accepts either.
 5. In `.env`: set `SHEETS_SOURCE_MODE=oauth_user`, `GOOGLE_SHEET_ID=<the ID from the
-   sheet's URL>`, and `GOOGLE_SHEET_WORKSHEET=<tab name>`.
-6. Run a sync. The first time, it opens your browser for a one-time Google login +
-   consent; after that, a refresh token is cached to `data/oauth_token.json` (also
-   git-ignored) so it never prompts again unless you revoke access.
+   sheet's URL>`, `GOOGLE_SHEET_WORKSHEET=<tab name>`, and `GOOGLE_OAUTH_REDIRECT_URI`
+   matching what you registered in step 3.
+6. Start the app and visit `/auth/google` in a browser (e.g.
+   `http://127.0.0.1:8000/auth/google`, or your hosted URL's `/auth/google`). It
+   redirects to a normal Google login/consent screen; after you approve, the
+   resulting token is saved in the app's database (not a local file), so it survives
+   restarts and works the same way whether the app is running on your laptop or
+   hosted online.
 
-This is a normal OAuth *client* credential (like any desktop app uses), not a
-service account key, so it's unaffected by that org policy — and it authenticates
-as you, so it only ever sees sheets you personally have access to.
+This is a normal OAuth *client* credential (like any web app uses to offer
+"Sign in with Google"), not a service account key, so it's unaffected by that org
+policy — and it authenticates as you, so it only ever sees sheets you personally
+have access to.
 
 ### Matching your Sheet's columns
 
@@ -166,9 +178,103 @@ tests/              pytest suite
 data/               sample CSV + local SQLite DB (git-ignored)
 ```
 
-## Deploying it somewhere you can check from your phone
+## Deploying it online (no terminal, no local install required)
 
-This is a plain ASGI app, so it runs on Render, Railway, Fly.io, or a small VPS with
-no changes — set the same environment variables from `.env` there, and swap
-`DATABASE_URL` for a persistent volume path or a hosted Postgres URL if you outgrow
-SQLite.
+This guide assumes you've never used Render, Git, or a terminal before. Everything
+below happens by clicking around in a web browser.
+
+### 1. Create a free Postgres database
+
+The app needs somewhere permanent to store bookings, flags, and expenses. Render's
+free "Web Service" tier wipes its local disk on every restart, so a local SQLite
+file would lose your data — use a real hosted database instead:
+
+1. Go to [neon.tech](https://neon.tech) and sign up (free tier is enough).
+2. Create a new project — accept the defaults.
+3. On the project's dashboard, find the **connection string** — it looks like
+   `postgresql://user:password@host/dbname?sslmode=require`. Copy it. You'll paste
+   it into Render in step 3 below.
+4. Change the `postgresql://` at the very start to `postgresql+psycopg://` (the app
+   needs that exact prefix) — the rest of the string stays the same.
+
+### 2. Create the Render web service
+
+1. Go to [render.com](https://render.com) and sign up (you can sign up with your
+   Google account).
+2. Click **New +** → **Web Service**.
+3. Choose **Build and deploy from a Git repository**, then connect your GitHub
+   account and select the `sollo` repository.
+4. Render will ask for a branch — pick `claude/guest-operations-management-tucv0b`
+   (or whichever branch has the latest code).
+5. Fill in:
+   - **Name**: anything, e.g. `sollo`
+   - **Runtime**: Python 3
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Instance Type**: Free
+6. Don't click Create yet — scroll down to **Environment Variables** first.
+
+### 3. Set the environment variables
+
+This replaces editing a `.env` file — Render gives you a form instead. Add each of
+these as a separate row (Key / Value):
+
+| Key | Value |
+|---|---|
+| `DATABASE_URL` | the Neon connection string from step 1 (with `postgresql+psycopg://`) |
+| `SHEETS_SOURCE_MODE` | `oauth_user` |
+| `GOOGLE_SHEET_ID` | the long ID from your bookings sheet's URL, between `/d/` and `/edit` |
+| `GOOGLE_SHEET_WORKSHEET` | the exact tab name with your booking rows |
+| `GOOGLE_OAUTH_CLIENT_SECRET_JSON` | the *entire contents* of the OAuth client JSON file you'll download in step 4 below — paste the whole thing, curly braces and all |
+| `GOOGLE_OAUTH_REDIRECT_URI` | `https://YOUR-APP-NAME.onrender.com/auth/google/callback` (you'll know the exact URL once Render assigns it — see step 5) |
+
+Only add `COL_...` / `BILLABLE_STATES` rows if your sheet's column names differ from
+the defaults already built into the app (see "Matching your Sheet's columns" above).
+
+Click **Create Web Service**. Render will build and deploy — this takes a few
+minutes. It'll fail to start correctly until you finish step 4 below, and that's
+expected.
+
+### 4. Create the Google OAuth client (Web application type)
+
+Once deployed, Render shows you the app's URL at the top of its dashboard, e.g.
+`https://sollo-abcd.onrender.com`. Use that exact URL below.
+
+1. In [Google Cloud Console](https://console.cloud.google.com), enable the
+   **Google Sheets API** (APIs & Services → Library → search "Google Sheets API" →
+   Enable).
+2. APIs & Services → **OAuth consent screen** → configure it (User type "External"
+   is fine; add your own Google account under "Test users").
+3. APIs & Services → **Credentials** → Create Credentials → **OAuth client ID** →
+   Application type **Web application**.
+4. Under "Authorized redirect URIs", add:
+   `https://sollo-abcd.onrender.com/auth/google/callback` (using your actual Render
+   URL from above).
+5. Click Create — it shows you a Client ID and Client Secret, and offers a JSON
+   download. Download it, open it in any text editor, and copy its entire contents.
+6. Back in Render: go to your web service → **Environment** → paste that JSON
+   content into `GOOGLE_OAUTH_CLIENT_SECRET_JSON`, and set
+   `GOOGLE_OAUTH_REDIRECT_URI` to the same URL you just registered
+   (`https://sollo-abcd.onrender.com/auth/google/callback`). Save — Render
+   redeploys automatically.
+
+### 5. Share your Sheet and connect it
+
+1. Open your real bookings Google Sheet, click **Share**, and make sure the Google
+   account you'll log in with (the one you added as a "Test user" above) has at
+   least **Viewer** access — it's probably already the owner, in which case no
+   action needed.
+2. Visit `https://sollo-abcd.onrender.com` (your app's real URL) in your browser.
+3. You'll see a banner: "Your Google account isn't connected yet." Click it.
+4. Log into Google, approve access, and you're redirected back into the app —
+   connected.
+5. Click **"Sync bookings from Sheet"**. Your real bookings should appear.
+
+From here on, you just visit that same URL any time — from your phone, laptop,
+anywhere — to check bookings, log flags/expenses, or view the monthly close-out.
+No terminal, no files, ever again.
+
+### If something's stuck
+
+Render's dashboard has a **Logs** tab on your web service — if the app won't load,
+that's the first place to look. Paste me what it says and I'll help you fix it.

@@ -56,6 +56,17 @@ class StayFlag(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class Setting(Base):
+    """Small key/value store for app state that must survive redeploys/restarts
+    (e.g. the Google OAuth token) -- kept in the database rather than a local
+    file since hosting platforms often wipe local disk on every deploy."""
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+
+
 class Expense(Base):
     """Manually entered monthly costs (e.g. supplies) not tied to a single stay."""
 

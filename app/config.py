@@ -17,8 +17,13 @@ class Settings(BaseSettings):
 
     # Used when SHEETS_SOURCE_MODE=oauth_user -- authenticates as a real Google
     # user via a one-time browser consent instead of a service account key.
+    # Either a file path to the downloaded OAuth client JSON, OR the raw JSON
+    # content itself pasted directly (handy for hosting platforms where you set
+    # environment variables through a web UI, not a file). The obtained token is
+    # stored in the database (Setting table), not on local disk, so it survives
+    # redeploys on hosts with ephemeral filesystems.
     google_oauth_client_secret_json: str = "./data/oauth_client_secret.json"
-    google_oauth_token_path: str = "./data/oauth_token.json"
+    google_oauth_redirect_uri: str = "http://127.0.0.1:8000/auth/google/callback"
 
     col_external_id: str = "reference"
     col_guest_name: str = ""  # leave blank to compose from first/last name columns below

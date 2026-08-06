@@ -4,6 +4,13 @@
 <h1>Dashboard</h1>
 <p class="muted">This month so far ({{ year }}-{{ "%02d"|format(month) }}) — full close-out on the <a href="/monthly">Monthly page</a>.</p>
 
+{% if needs_google_connect %}
+<div class="notice">
+  Your Google account isn't connected yet.
+  <a href="/auth/google"><strong>Click here to connect it</strong></a> before syncing.
+</div>
+{% endif %}
+
 <div class="cards">
   <div class="card">
     <div class="label">Revenue</div>
@@ -32,6 +39,6 @@
 </div>
 
 <form class="inline" method="post" action="/sync">
-  <button type="submit">Sync bookings from Sheet</button>
+  <button type="submit" {{ "disabled" if needs_google_connect else "" }}>Sync bookings from Sheet</button>
 </form>
 {% endblock %}
