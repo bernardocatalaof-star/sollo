@@ -16,7 +16,7 @@ from datetime import date
 from sqlalchemy.orm import Session, joinedload
 
 from app.fees import calculate_booking_fees
-from app.models import Booking, Cabin, Expense
+from app.models import Booking, Cabin, Expense, ExtraRevenue
 
 
 def _month_bounds(year: int, month: int) -> tuple[date, date]:
@@ -80,13 +80,18 @@ def landowner_statement(db: Session, year: int, month: int) -> LandownerStatemen
 class FinancialSummary:
     year: int
     month: int
-    total_revenue: float = 0.0
+    booking_revenue: float = 0.0
+    extra_revenue: float = 0.0
     total_landowner_costs: float = 0.0
     total_supply_costs: float = 0.0
     stays_closed: int = 0
     nights_occupied: int = 0
     nights_available: int = 0
     flagged_stays: int = 0
+
+    @property
+    def total_revenue(self) -> float:
+        return round(self.booking_revenue + self.extra_revenue, 2)
 
     @property
     def total_costs(self) -> float:
@@ -109,8 +114,11 @@ def financial_summary(db: Session, year: int, month: int) -> FinancialSummary:
 
     closing_bookings = bookings_closing_in_month(db, year, month)
     summary.stays_closed = len(closing_bookings)
-    summary.total_revenue = round(sum(b.total_price for b in closing_bookings), 2)
+    summary.booking_revenue = round(sum(b.total_price for b in closing_bookings), 2)
     summary.flagged_stays = sum(1 for b in closing_bookings if b.flags)
+
+    extra_revenue_entries = db.query(ExtraRevenue).filter(ExtraRevenue.month == start).all()
+    summary.extra_revenue = round(sum(e.amount for e in extra_revenue_entries), 2)
 
     statement = landowner_statement(db, year, month)
     summary.total_landowner_costs = statement.total_owed

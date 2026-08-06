@@ -78,3 +78,17 @@ class Expense(Base):
     description: Mapped[str] = mapped_column(String(300), default="")
     amount: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ExtraRevenue(Base):
+    """Manually entered income received outside the booking Sheet -- e.g. a bank
+    transfer for a gift card or a direct booking payment."""
+
+    __tablename__ = "extra_revenue"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    month: Mapped[date] = mapped_column(Date)  # stored as the 1st of the month
+    category: Mapped[str] = mapped_column(String(80), default="booking")  # gift_card | booking
+    description: Mapped[str] = mapped_column(String(300), default="")
+    amount: Mapped[float] = mapped_column(Float, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

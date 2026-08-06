@@ -36,7 +36,9 @@
 
 <h2>Financial summary</h2>
 <div class="cards">
-  <div class="card"><div class="label">Revenue</div><div class="value">€{{ "%.2f"|format(summary.total_revenue) }}</div></div>
+  <div class="card"><div class="label">Revenue</div><div class="value">€{{ "%.2f"|format(summary.total_revenue) }}</div>
+    <div class="muted">€{{ "%.2f"|format(summary.booking_revenue) }} bookings + €{{ "%.2f"|format(summary.extra_revenue) }} <a href="/extra-revenue">extra</a></div>
+  </div>
   <div class="card"><div class="label">Landowner costs</div><div class="value">€{{ "%.2f"|format(summary.total_landowner_costs) }}</div></div>
   <div class="card"><div class="label">Supply/other costs</div><div class="value">€{{ "%.2f"|format(summary.total_supply_costs) }}</div></div>
   <div class="card"><div class="label">Total costs</div><div class="value">€{{ "%.2f"|format(summary.total_costs) }}</div></div>

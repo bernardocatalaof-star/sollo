@@ -1,7 +1,7 @@
 from datetime import date
 
 from app.analytics import financial_summary, landowner_statement
-from app.models import Booking, Cabin, Expense
+from app.models import Booking, Cabin, Expense, ExtraRevenue
 
 
 def _seed(db_session):
@@ -53,3 +53,18 @@ def test_financial_summary_occupancy_counts_overlapping_nights(db_session):
     # Cabin2: Aug3-5 (2 nights)
     assert summary.nights_occupied == 7
     assert summary.nights_available == 31 * 2  # 2 cabins x 31 days in August
+
+
+def test_financial_summary_includes_extra_revenue_in_total(db_session):
+    _seed(db_session)
+    db_session.add(ExtraRevenue(month=date(2026, 8, 1), category="gift_card", description="", amount=50.0))
+    db_session.add(ExtraRevenue(month=date(2026, 8, 1), category="booking", description="", amount=75.0))
+    db_session.add(ExtraRevenue(month=date(2026, 9, 1), category="booking", description="", amount=999.0))
+    db_session.commit()
+
+    summary = financial_summary(db_session, 2026, 8)
+
+    assert summary.booking_revenue == 500.0  # R-1 (320) + R-2 (180); R-3 bills in September
+    assert summary.extra_revenue == 125.0
+    assert summary.total_revenue == 625.0
+    assert summary.profit == round(summary.total_revenue - summary.total_costs, 2)

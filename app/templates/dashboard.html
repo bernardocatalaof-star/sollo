@@ -15,6 +15,7 @@
   <div class="card">
     <div class="label">Revenue</div>
     <div class="value">€{{ "%.2f"|format(summary.total_revenue) }}</div>
+    <div class="muted">€{{ "%.2f"|format(summary.booking_revenue) }} bookings + €{{ "%.2f"|format(summary.extra_revenue) }} <a href="/extra-revenue">extra</a></div>
   </div>
   <div class="card">
     <div class="label">Costs (landowner + supplies)</div>
@@ -42,8 +43,8 @@
   <button type="submit" {{ "disabled" if needs_google_connect else "" }}>Sync bookings from Sheet</button>
 </form>
 
-<h2>Bookings counted in this month's Revenue (€{{ "%.2f"|format(summary.total_revenue) }})</h2>
-<p class="muted">Checkout date falls in {{ year }}-{{ "%02d"|format(month) }} — this is exactly what's summed above.</p>
+<h2>Bookings counted in this month's booking Revenue (€{{ "%.2f"|format(summary.booking_revenue) }})</h2>
+<p class="muted">Checkout date falls in {{ year }}-{{ "%02d"|format(month) }} — this is exactly what's summed above. Plus €{{ "%.2f"|format(summary.extra_revenue) }} from <a href="/extra-revenue">Extra Revenue</a> not shown here.</p>
 <table>
   <thead>
     <tr>
