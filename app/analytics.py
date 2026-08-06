@@ -13,7 +13,7 @@ import calendar
 from dataclasses import dataclass, field
 from datetime import date
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.fees import calculate_booking_fees
 from app.models import Booking, Cabin, Expense
@@ -30,6 +30,7 @@ def bookings_closing_in_month(db: Session, year: int, month: int) -> list[Bookin
     start, end = _month_bounds(year, month)
     return (
         db.query(Booking)
+        .options(joinedload(Booking.cabin))
         .filter(Booking.check_out >= start, Booking.check_out <= end)
         .order_by(Booking.check_out)
         .all()

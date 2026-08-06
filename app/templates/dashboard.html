@@ -41,4 +41,33 @@
 <form class="inline" method="post" action="/sync">
   <button type="submit" {{ "disabled" if needs_google_connect else "" }}>Sync bookings from Sheet</button>
 </form>
+
+<h2>Bookings counted in this month's Revenue (€{{ "%.2f"|format(summary.total_revenue) }})</h2>
+<p class="muted">Checkout date falls in {{ year }}-{{ "%02d"|format(month) }} — this is exactly what's summed above.</p>
+<table>
+  <thead>
+    <tr>
+      <th>Booking ID</th>
+      <th>Guest</th>
+      <th>Cabin</th>
+      <th>Check-in</th>
+      <th>Check-out</th>
+      <th>Revenue</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for booking in revenue_bookings %}
+    <tr>
+      <td><a class="rowlink" href="/bookings/{{ booking.id }}">{{ booking.external_id }}</a></td>
+      <td>{{ booking.guest_name or "—" }}</td>
+      <td>{{ booking.cabin.name }}</td>
+      <td>{{ booking.check_in }}</td>
+      <td>{{ booking.check_out }}</td>
+      <td>€{{ "%.2f"|format(booking.total_price) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">No bookings checking out this month yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}
