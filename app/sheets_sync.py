@@ -1,9 +1,11 @@
 """Pulls booking rows from Google Sheets (read-only) and upserts them into the DB.
 
-Three interchangeable source modes, picked via settings.sheets_source_mode:
+Four interchangeable source modes, picked via settings.sheets_source_mode:
   - local_csv:       reads a CSV file from disk (handy for testing, no Google setup needed)
   - csv_url:         fetches a Sheet published to the web as CSV (File > Share > Publish to web)
   - service_account: reads via the Sheets API using a Google service account
+  - oauth_user:      reads via the Sheets API authenticated as a real Google user
+                      (use this if your GCP org blocks service account key creation)
 
 Switching modes or adjusting the column mapping is purely a .env change -- no code changes.
 """
@@ -12,6 +14,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -56,6 +59,51 @@ def _fetch_rows_service_account() -> list[dict]:
     return worksheet.get_all_records()
 
 
+_OAUTH_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+
+
+def _get_oauth_credentials():
+    """Authenticates as the signed-in Google user (not a service account).
+
+    Not affected by org policies like iam.disableServiceAccountKeyCreation, since
+    no service account key is involved -- this is the same OAuth flow any desktop
+    app uses. The user consents once in a browser; after that a refresh token is
+    cached to disk so future syncs don't need any interaction.
+    """
+    import google.auth.transport.requests
+    from google.oauth2.credentials import Credentials as UserCredentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+
+    token_path = settings.google_oauth_token_path
+    creds = None
+    if os.path.exists(token_path):
+        creds = UserCredentials.from_authorized_user_file(token_path, _OAUTH_SCOPES)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(google.auth.transport.requests.Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                settings.google_oauth_client_secret_json, _OAUTH_SCOPES
+            )
+            creds = flow.run_local_server(port=0)
+        os.makedirs(os.path.dirname(token_path) or ".", exist_ok=True)
+        with open(token_path, "w", encoding="utf-8") as f:
+            f.write(creds.to_json())
+
+    return creds
+
+
+def _fetch_rows_oauth_user() -> list[dict]:
+    import gspread
+
+    creds = _get_oauth_credentials()
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key(settings.google_sheet_id)
+    worksheet = sheet.worksheet(settings.google_sheet_worksheet)
+    return worksheet.get_all_records()
+
+
 def fetch_rows() -> list[dict]:
     mode = settings.sheets_source_mode
     if mode == "local_csv":
@@ -64,6 +112,8 @@ def fetch_rows() -> list[dict]:
         return _fetch_rows_csv_url()
     if mode == "service_account":
         return _fetch_rows_service_account()
+    if mode == "oauth_user":
+        return _fetch_rows_oauth_user()
     raise ValueError(f"Unknown SHEETS_SOURCE_MODE: {mode!r}")
 
 

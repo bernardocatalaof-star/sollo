@@ -56,14 +56,37 @@ Google setup at all. When you're ready to point it at your real Sheet, edit `.en
 2. Copy the generated URL.
 3. In `.env`: set `SHEETS_SOURCE_MODE=csv_url` and `SHEETS_CSV_URL=<that URL>`.
 
-Note: this makes the sheet's data readable by anyone with the link.
+Note: this makes the sheet's data readable by anyone with the link — skip this if
+your sheet has guest PII (name/email/address/phone), which a platform export usually does.
 
-**Option B — Google service account (private, recommended for ongoing use):**
+**Option B — Google service account (private, needs an unrestricted GCP org):**
 1. In Google Cloud Console, create a service account and download its JSON key.
 2. Share your Google Sheet with the service account's email (view access is enough).
 3. Save the JSON key to `data/service_account.json` (already git-ignored).
 4. In `.env`: set `SHEETS_SOURCE_MODE=service_account`, `GOOGLE_SHEET_ID=<the ID from
    the sheet's URL>`, and `GOOGLE_SHEET_WORKSHEET=<tab name>`.
+
+If step 1 fails with `iam.disableServiceAccountKeyCreation` — a policy your Google
+Cloud organization enforces and that you likely can't override yourself — use
+Option C instead. It reaches the same private sheet without a service account key.
+
+**Option C — OAuth as yourself (private, works even when service account keys are
+blocked):**
+1. Cloud Console → APIs & Services → **OAuth consent screen** → configure it (User
+   type "External" is fine for personal use; add yourself under "Test users").
+2. Add the scope `.../auth/spreadsheets.readonly`.
+3. Cloud Console → APIs & Services → **Credentials** → Create Credentials → **OAuth
+   client ID** → Application type **Desktop app** → Create → download the JSON.
+4. Save it to `data/oauth_client_secret.json` (already git-ignored).
+5. In `.env`: set `SHEETS_SOURCE_MODE=oauth_user`, `GOOGLE_SHEET_ID=<the ID from the
+   sheet's URL>`, and `GOOGLE_SHEET_WORKSHEET=<tab name>`.
+6. Run a sync. The first time, it opens your browser for a one-time Google login +
+   consent; after that, a refresh token is cached to `data/oauth_token.json` (also
+   git-ignored) so it never prompts again unless you revoke access.
+
+This is a normal OAuth *client* credential (like any desktop app uses), not a
+service account key, so it's unaffected by that org policy — and it authenticates
+as you, so it only ever sees sheets you personally have access to.
 
 ### Matching your Sheet's columns
 

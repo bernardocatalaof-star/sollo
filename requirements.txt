@@ -8,5 +8,6 @@ holidays==0.57
 python-dateutil==2.9.0.post0
 gspread==6.1.2
 google-auth==2.34.0
+google-auth-oauthlib==1.2.1
 requests==2.32.3
 pytest==8.3.3

@@ -6,7 +6,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/sollo.db"
 
-    sheets_source_mode: str = "local_csv"  # local_csv | csv_url | service_account
+    sheets_source_mode: str = "local_csv"  # local_csv | csv_url | service_account | oauth_user
 
     sheets_local_csv_path: str = "./data/sample_bookings.csv"
     sheets_csv_url: str = ""
@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     google_service_account_json: str = "./data/service_account.json"
     google_sheet_id: str = ""
     google_sheet_worksheet: str = "Bookings"
+
+    # Used when SHEETS_SOURCE_MODE=oauth_user -- authenticates as a real Google
+    # user via a one-time browser consent instead of a service account key.
+    google_oauth_client_secret_json: str = "./data/oauth_client_secret.json"
+    google_oauth_token_path: str = "./data/oauth_token.json"
 
     col_external_id: str = "reference"
     col_guest_name: str = ""  # leave blank to compose from first/last name columns below
