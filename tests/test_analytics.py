@@ -26,16 +26,36 @@ def test_landowner_statement_only_counts_stays_closing_in_month(db_session):
     _seed(db_session)
     statement = landowner_statement(db_session, 2026, 8)
     cabins_billed = {c.cabin_name for c in statement.by_cabin}
-    assert cabins_billed == {"Cabin 1", "Cabin 2"}  # the Aug 30 -> Sep 2 stay is NOT billed in August
+    assert cabins_billed == {"Cabin 1", "Cabin 2"}
     assert statement.total_owed > 0
 
 
-def test_landowner_statement_bills_cross_month_stay_in_checkout_month(db_session):
+def test_landowner_statement_splits_cross_month_stay_nights_by_calendar_month(db_session):
     _seed(db_session)
+    august = landowner_statement(db_session, 2026, 8)
     september = landowner_statement(db_session, 2026, 9)
-    assert len(september.by_cabin) == 1
-    assert september.by_cabin[0].cabin_name == "Cabin 1"
-    assert september.by_cabin[0].nights == 3  # Aug 30 -> Sep 2
+
+    cabin1_august = next(c for c in august.by_cabin if c.cabin_name == "Cabin 1")
+    cabin1_september = next(c for c in september.by_cabin if c.cabin_name == "Cabin 1")
+
+    # R-3 (Aug 30 -> Sep 2): 2 nights actually slept in August, 1 in September.
+    # R-1 (Aug 1-4, 3 nights) is entirely in August, so Cabin 1's August total is 3 + 2 = 5.
+    assert cabin1_august.nights == 5
+    assert cabin1_september.nights == 1
+
+
+def test_landowner_statement_bills_cleaning_fee_only_in_checkout_month(db_session):
+    _seed(db_session)
+    august = landowner_statement(db_session, 2026, 8)
+    september = landowner_statement(db_session, 2026, 9)
+
+    cabin1_august = next(c for c in august.by_cabin if c.cabin_name == "Cabin 1")
+    cabin1_september = next(c for c in september.by_cabin if c.cabin_name == "Cabin 1")
+
+    # R-3 checks out in September, so its cleaning fee is billed there, not in
+    # August, even though 2 of its nights were slept in August.
+    assert cabin1_august.cleanings == 1  # just R-1
+    assert cabin1_september.cleanings == 1  # just R-3
 
 
 def test_financial_summary_includes_supply_expenses(db_session):

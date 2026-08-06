@@ -1,12 +1,13 @@
 """Monthly close-out: landowner payout + revenue/cost/occupancy/profit summary.
 
-Attribution rules (kept simple and consistent with the fee rules):
-  - A stay's revenue and landowner fees (land + cleaning) are booked entirely to the
-    calendar month of its CHECK-OUT date -- that's when the cleaning charge fires and
-    the stay is considered "closed".
-  - Occupancy is computed differently: it counts nights that actually fall within the
-    month for ANY overlapping stay (even one that checks out next month), so a
-    month's occupancy rate reflects the calendar, not the billing bucket.
+Attribution rules:
+  - Revenue is booked to the calendar month of a stay's CHECK-OUT date -- that's
+    when the platform/sheet records the payment as settled.
+  - Land (overnight) fee is split across calendar months by nights actually slept
+    in each one -- a stay spanning a month boundary owes part of its land fee to
+    each month, matching a night-by-night occupancy log.
+  - Cleaning fee is booked entirely to the calendar month of CHECK-OUT, since
+    that's when the clean (and the charge) actually happens.
 """
 
 import calendar
@@ -15,6 +16,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.config import settings
 from app.fees import calculate_booking_fees
 from app.models import Booking, Cabin, Expense, ExtraRevenue
 
@@ -35,6 +37,29 @@ def bookings_closing_in_month(db: Session, year: int, month: int) -> list[Bookin
         .order_by(Booking.check_out)
         .all()
     )
+
+
+def _nights_in_month(db: Session, year: int, month: int) -> list[tuple[Booking, int]]:
+    """Bookings overlapping the month, paired with how many of their nights fall
+    inside it. A night "belongs" to the month its start date falls in, so the
+    overlap window uses an EXCLUSIVE end (first day of next month)."""
+    start, _ = _month_bounds(year, month)
+    next_month_start = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+
+    overlapping = (
+        db.query(Booking)
+        .options(joinedload(Booking.cabin))
+        .filter(Booking.check_in < next_month_start, Booking.check_out > start)
+        .all()
+    )
+    result = []
+    for booking in overlapping:
+        overlap_start = max(booking.check_in, start)
+        overlap_end = min(booking.check_out, next_month_start)
+        nights = max((overlap_end - overlap_start).days, 0)
+        if nights:
+            result.append((booking, nights))
+    return result
 
 
 @dataclass
@@ -62,15 +87,22 @@ class LandownerStatement:
 
 
 def landowner_statement(db: Session, year: int, month: int) -> LandownerStatement:
-    bookings = bookings_closing_in_month(db, year, month)
     by_cabin: dict[str, CabinOwed] = {}
 
-    for booking in bookings:
+    # Land (overnight) fee: nights actually slept in THIS calendar month.
+    for booking, nights_in_month in _nights_in_month(db, year, month):
+        entry = by_cabin.setdefault(booking.cabin.name, CabinOwed(cabin_name=booking.cabin.name))
+        entry.nights += nights_in_month
+        entry.overnight_total = round(
+            entry.overnight_total + nights_in_month * settings.overnight_fee_per_night, 2
+        )
+
+    # Cleaning fee: one per stay, charged when the clean happens -- the calendar
+    # month containing check-out.
+    for booking in bookings_closing_in_month(db, year, month):
         fees = calculate_booking_fees(booking)
         entry = by_cabin.setdefault(booking.cabin.name, CabinOwed(cabin_name=booking.cabin.name))
-        entry.nights += fees.nights
         entry.cleanings += 1
-        entry.overnight_total = round(entry.overnight_total + fees.overnight_fee, 2)
         entry.cleaning_total = round(entry.cleaning_total + fees.cleaning_fee, 2)
 
     return LandownerStatement(year=year, month=month, by_cabin=sorted(by_cabin.values(), key=lambda c: c.cabin_name))
@@ -109,7 +141,7 @@ class FinancialSummary:
 
 
 def financial_summary(db: Session, year: int, month: int) -> FinancialSummary:
-    start, end = _month_bounds(year, month)
+    start, _ = _month_bounds(year, month)
     summary = FinancialSummary(year=year, month=month)
 
     closing_bookings = bookings_closing_in_month(db, year, month)
@@ -128,22 +160,7 @@ def financial_summary(db: Session, year: int, month: int) -> FinancialSummary:
     )
     summary.total_supply_costs = round(sum(e.amount for e in supply_total), 2)
 
-    # A night "belongs" to the month its start date falls in, so the overlap window
-    # for counting nights must use an EXCLUSIVE end (first day of next month) --
-    # unlike `end` above, which is the inclusive last calendar day used for billing.
-    next_month_start = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-
-    overlapping = (
-        db.query(Booking)
-        .filter(Booking.check_in < next_month_start, Booking.check_out > start)
-        .all()
-    )
-    nights = 0
-    for booking in overlapping:
-        overlap_start = max(booking.check_in, start)
-        overlap_end = min(booking.check_out, next_month_start)
-        nights += max((overlap_end - overlap_start).days, 0)
-    summary.nights_occupied = nights
+    summary.nights_occupied = sum(nights for _, nights in _nights_in_month(db, year, month))
 
     days_in_month = calendar.monthrange(year, month)[1]
     cabin_count = db.query(Cabin).count()

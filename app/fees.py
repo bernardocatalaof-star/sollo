@@ -6,8 +6,10 @@ Rules (per cabin, per stay):
   - cleaning fee: settings.cleaning_fee_standard EUR, charged once per stay at checkout,
       or settings.cleaning_fee_holiday EUR if the checkout date falls on a public holiday.
 
-A stay is billed entirely to the calendar month of its checkout date, since that's
-when the clean (and therefore the landowner charge) is triggered.
+BookingFees here always reflects the WHOLE stay (used for the per-booking display on
+the Bookings page). For the monthly landowner statement, app/analytics.py splits the
+overnight fee across calendar months by nights actually slept in each one, while still
+billing the cleaning fee entirely to the checkout month -- see its module docstring.
 """
 
 from dataclasses import dataclass

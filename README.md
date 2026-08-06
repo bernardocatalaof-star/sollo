@@ -10,11 +10,12 @@ summary.
 - **Sheets sync (read-only)** — pulls booking rows from your Sheet into the app's own
   database. The Sheet stays your booking intake; nothing is written back to it.
 - **Fee calculation** (automatic, no manual entry):
-  - Overnight ("land") fee: **€19.80 per night occupied**, per cabin.
-    Nights occupied = check-out date minus check-in date.
+  - Overnight ("land") fee: **€19.80 per night occupied**, per cabin. A stay that
+    spans a month boundary has its nights split across both months by calendar
+    date (e.g. 2 nights in July + 1 in August), not billed entirely to one month.
   - Cleaning fee: **€33 per stay**, charged once at checkout, or **€40** if the
-    checkout date falls on a **Portuguese public holiday**.
-  - A stay's fees are billed entirely to the calendar month of its **checkout** date.
+    checkout date falls on a **Portuguese public holiday** — billed entirely to
+    the calendar month of checkout, since that's when the clean happens.
 - **Flags** — free-text issues/occurrences (damage, complaint, note...) attached to
   any booking.
 - **Expenses** — manually entered monthly costs (e.g. supplies) not tied to a stay.
@@ -151,11 +152,12 @@ platform exports and typical European sheets.
   `Cabin` column — no separate setup needed.
 - **Fee schedule** (€19.80/night, €33/€40 cleaning, PT holidays) is hardcoded in
   `app/config.py` — change the values there if rates change.
-- **Occupancy rate** = nights actually occupied (any stay overlapping the month,
-  correctly split across a month boundary) ÷ (days in month × number of cabins).
-- Revenue and landowner costs, by contrast, are attributed to the checkout month as a
-  whole (matches how the cleaning fee is billed) — a stay that spans a month
-  boundary shows up in occupancy for both months but is billed in one.
+- **Occupancy rate** and the **land fee** both split a stay's nights by calendar
+  month — a stay spanning a month boundary contributes nights (and land fee) to
+  both months, in proportion to how many nights actually fall in each.
+- The **cleaning fee** and **Revenue**, by contrast, are attributed to the
+  checkout month as a whole — that's when the clean happens and when the
+  platform/sheet records the payment as settled.
 - **Revenue** uses `net_paid` (actual amount collected, net of refunds) rather than
   the full quoted `total` — change `COL_TOTAL_PRICE` in `.env` if you'd rather
   recognize revenue on the full booked price regardless of payment status.
