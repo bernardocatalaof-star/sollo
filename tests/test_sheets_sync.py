@@ -28,6 +28,14 @@ def test_extract_cabin_name_from_json_list():
     assert _extract_cabin_name('[{"name": "Cabin 2", "qty": 1}]') == "Cabin 2"
 
 
+def test_extract_cabin_name_uses_last_entry_of_edit_history_with_night_count():
+    assert _extract_cabin_name("Santiago (2 nights),Santiago (Friday - Monday)") == "Santiago"
+
+
+def test_extract_cabin_name_uses_last_entry_when_cabin_selection_changed():
+    assert _extract_cabin_name("Olivia,Santiago (2 nights)") == "Santiago"
+
+
 def test_sync_creates_bookings_and_cabins_from_local_csv(db_session, monkeypatch):
     monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
     monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", "data/sample_bookings.csv")

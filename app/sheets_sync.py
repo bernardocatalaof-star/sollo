@@ -201,6 +201,13 @@ def _extract_cabin_name(raw) -> str:
     Handles a plain name ("Cabin 1"), a JSON list/dict from platforms that export
     the product line items as structured data, and trims trailing quantity
     annotations like " x1" or " (Qty: 1)".
+
+    Plain-text values may also be a comma-separated edit history where earlier
+    entries are stale prior selections and only the LAST one is the current cabin
+    -- e.g. "Olivia,Santiago (2 nights)" means the booking is for Santiago, not
+    Olivia. Trailing parenthetical annotations on that last entry, like
+    "(2 nights)" or "(Friday - Monday)", are duration/date metadata, not part of
+    the cabin name, and are stripped too.
     """
     text = str(raw or "").strip()
     if not text:
@@ -216,7 +223,10 @@ def _extract_cabin_name(raw) -> str:
                 text = str(data.get("name", text))
         except json.JSONDecodeError:
             pass
+    else:
+        text = text.split(",")[-1].strip()
 
+    text = re.sub(r"\s*\([^()]*\)\s*$", "", text).strip()
     text = re.sub(r"\s*[\(\[]?\s*x\s*\d+\s*[\)\]]?\s*$", "", text, flags=re.IGNORECASE).strip()
     return text or "Unassigned"
 
@@ -285,6 +295,13 @@ def sync_bookings(db: Session) -> SyncResult:
         else:
             db.add(Booking(external_id=external_id, **values))
             result.created += 1
+
+    # Cabins can become orphaned (e.g. a booking's cabin got reassigned after a
+    # products-column parsing fix, or a cabin name changed upstream) -- prune
+    # them so they don't inflate the occupancy denominator with empty rows.
+    db.flush()
+    for cabin in db.query(Cabin).filter(~Cabin.bookings.any()).all():
+        db.delete(cabin)
 
     db.commit()
     return result
