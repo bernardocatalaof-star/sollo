@@ -79,6 +79,43 @@ def test_sync_removes_booking_that_became_non_billable(db_session, monkeypatch, 
     assert db_session.query(Booking).filter(Booking.external_id == "R-9").count() == 0
 
 
+def test_sync_removes_booking_whose_row_was_deleted_entirely_from_sheet(db_session, monkeypatch, tmp_path):
+    csv_path = tmp_path / "bookings.csv"
+    header = "reference,state,customer_first_name,customer_last_name,products,start_on,end_on,net_paid\n"
+    row = "R-9,completed,Jane,Doe,Cabin 1,2026-08-01,2026-08-03,100.00\n"
+
+    csv_path.write_text(header + row)
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", str(csv_path))
+    sync_bookings(db_session)
+    assert db_session.query(Booking).filter(Booking.external_id == "R-9").count() == 1
+
+    other_row = "R-10,completed,John,Roe,Cabin 1,2026-08-05,2026-08-07,80.00\n"
+    csv_path.write_text(header + other_row)
+    result = sync_bookings(db_session)
+
+    assert result.removed == 1
+    assert db_session.query(Booking).filter(Booking.external_id == "R-9").count() == 0
+    assert db_session.query(Booking).filter(Booking.external_id == "R-10").count() == 1
+
+
+def test_sync_does_not_wipe_bookings_when_fetch_returns_no_rows(db_session, monkeypatch, tmp_path):
+    csv_path = tmp_path / "bookings.csv"
+    header = "reference,state,customer_first_name,customer_last_name,products,start_on,end_on,net_paid\n"
+    row = "R-9,completed,Jane,Doe,Cabin 1,2026-08-01,2026-08-03,100.00\n"
+
+    csv_path.write_text(header + row)
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", str(csv_path))
+    sync_bookings(db_session)
+
+    csv_path.write_text(header)  # header only -- simulates an empty/failed fetch
+    result = sync_bookings(db_session)
+
+    assert result.removed == 0
+    assert db_session.query(Booking).filter(Booking.external_id == "R-9").count() == 1
+
+
 def test_holiday_stay_gets_holiday_cleaning_rate_after_sync(db_session, monkeypatch):
     monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
     monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", "data/sample_bookings.csv")

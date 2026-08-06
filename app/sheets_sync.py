@@ -249,15 +249,18 @@ def _get_or_create_cabin(db: Session, name: str) -> Cabin:
 def sync_bookings(db: Session) -> SyncResult:
     result = SyncResult()
     rows = fetch_rows(db)
+    seen_external_ids: set[str] = set()
 
     for row in rows:
+        external_id = _row_external_id(row)
+        seen_external_ids.add(external_id)
+
         if not _row_is_billable(row):
             # A booking that was previously synced as billable (e.g. "completed")
             # can later flip to a non-billable state (cancelled, refunded, ...).
             # Remove any such stale record so it stops counting towards revenue.
             # Uses session.delete() rather than a bulk .delete() so the
             # cascade="all, delete-orphan" on Booking.flags actually fires.
-            external_id = _row_external_id(row)
             stale = db.query(Booking).filter(Booking.external_id == external_id).first()
             if stale:
                 db.delete(stale)
@@ -266,7 +269,6 @@ def sync_bookings(db: Session) -> SyncResult:
             continue
 
         try:
-            external_id = _row_external_id(row)
             check_in = _parse_date(row[settings.col_check_in])
             check_out = _parse_date(row[settings.col_check_out])
         except (KeyError, ValueError, OverflowError) as exc:
@@ -295,6 +297,17 @@ def sync_bookings(db: Session) -> SyncResult:
         else:
             db.add(Booking(external_id=external_id, **values))
             result.created += 1
+
+    # A row can also disappear from the Sheet entirely (deleted outright, not just
+    # marked cancelled) -- the loop above never sees it, so without this it would
+    # stay in the DB forever, quietly inflating revenue/occupancy. Only run this
+    # when the fetch actually returned rows, so a transient empty/failed fetch
+    # can't wipe out every booking.
+    if rows:
+        orphaned = db.query(Booking).filter(~Booking.external_id.in_(seen_external_ids)).all()
+        for stale in orphaned:
+            db.delete(stale)
+            result.removed += 1
 
     # Cabins can become orphaned (e.g. a booking's cabin got reassigned after a
     # products-column parsing fix, or a cabin name changed upstream) -- prune
