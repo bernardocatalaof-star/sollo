@@ -92,6 +92,13 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
             overlap_end = min(booking.check_out, week_end_exclusive)
             span = (overlap_end - overlap_start).days
             if span <= 0:
+                # No full night falls in this week -- but if checkout lands exactly
+                # on this week's Monday (e.g. a Fri check-in/Mon check-out stay,
+                # all 3 nights in the previous week), it still needs a same-day
+                # "checkout stub" here so the bar visibly reaches Monday instead of
+                # stopping dead at Sunday's edge.
+                if booking.check_out == week_start:
+                    segments.append((0, 0, 0, False, True, booking))
                 continue
             start_col = (overlap_start - week_start).days
             end_col = start_col + span

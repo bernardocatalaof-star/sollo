@@ -73,6 +73,34 @@ def test_month_grid_bar_starts_and_ends_at_the_midpoint_of_checkin_and_checkout_
     assert bar.grid_end == 2 * 5 + 2  # midpoint of Saturday (check-out)
 
 
+def test_month_grid_weekend_stay_checking_out_monday_shows_a_stub_on_monday(db_session):
+    olivia = Cabin(name="Olivia")
+    db_session.add(olivia)
+    db_session.flush()
+    # Fri Aug 7 2026 -> Mon Aug 10 2026: 3 nights (Fri, Sat, Sun), checkout Monday.
+    # Aug 7 is in the week of Aug 3-9; Aug 10 (checkout) starts the NEXT week's row.
+    db_session.add(
+        Booking(
+            external_id="R-4", cabin=olivia, guest_name="Weekend Guest",
+            check_in=date(2026, 8, 7), check_out=date(2026, 8, 10), total_price=100,
+        )
+    )
+    db_session.commit()
+
+    grid = month_grid(db_session, 2026, 8)
+    bars = [b for b in _all_bars(grid) if b.booking.guest_name == "Weekend Guest"]
+    assert len(bars) == 2  # the 3-night segment, plus a same-day checkout stub on Monday
+
+    week_bar, monday_stub = bars
+    # Friday (day index 4) midpoint through the full end of the week (Sunday).
+    assert week_bar.grid_start == 2 * 4 + 2
+    assert week_bar.grid_end == 2 * 7 + 1
+    # The stub occupies just the first half of Monday (day index 0) in the next
+    # week's row, so the bar visibly reaches Monday instead of stopping at Sunday.
+    assert monday_stub.grid_start == 1
+    assert monday_stub.grid_end == 2
+
+
 def test_month_grid_splits_bar_at_week_boundary(db_session):
     olivia = Cabin(name="Olivia")
     db_session.add(olivia)
