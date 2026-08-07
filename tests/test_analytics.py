@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.analytics import financial_summary, landowner_statement
+from app.analytics import financial_summary, landowner_statement, upcoming_occupancy
 from app.models import Booking, Cabin, Expense, ExtraRevenue
 
 
@@ -88,3 +88,13 @@ def test_financial_summary_includes_extra_revenue_in_total(db_session):
     assert summary.extra_revenue == 125.0
     assert summary.total_revenue == 625.0
     assert summary.profit == round(summary.total_revenue - summary.total_costs, 2)
+
+
+def test_upcoming_occupancy_returns_one_entry_per_month_and_rolls_over_year(db_session):
+    _seed(db_session)
+    months = upcoming_occupancy(db_session, 2026, 11, count=3)
+
+    assert [(m.year, m.month) for m in months] == [(2026, 11), (2026, 12), (2027, 1)]
+    assert months[0].label == "Nov 2026"
+    for m in months:
+        assert 0.0 <= m.rate <= 1.0

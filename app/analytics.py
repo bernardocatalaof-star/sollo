@@ -167,3 +167,22 @@ def financial_summary(db: Session, year: int, month: int) -> FinancialSummary:
     summary.nights_available = days_in_month * cabin_count
 
     return summary
+
+
+@dataclass
+class MonthOccupancy:
+    year: int
+    month: int
+    label: str
+    rate: float
+
+
+def upcoming_occupancy(db: Session, year: int, month: int, count: int = 3) -> list[MonthOccupancy]:
+    """Occupancy rate for `count` consecutive months starting at year/month."""
+    results = []
+    y, m = year, month
+    for _ in range(count):
+        rate = financial_summary(db, y, m).occupancy_rate
+        results.append(MonthOccupancy(year=y, month=m, label=date(y, m, 1).strftime("%b %Y"), rate=rate))
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return results

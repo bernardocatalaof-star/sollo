@@ -33,42 +33,22 @@
     <div class="label">Owed to landowner</div>
     <div class="value">€{{ "%.2f"|format(statement.total_owed) }}</div>
   </div>
-  <div class="card">
-    <div class="label">Flagged stays</div>
-    <div class="value {{ 'bad' if summary.flagged_stays else '' }}">{{ summary.flagged_stays }}</div>
-  </div>
 </div>
 
 <form class="inline" method="post" action="/sync">
   <button type="submit" {{ "disabled" if needs_google_connect else "" }}>Sync bookings from Sheet</button>
 </form>
 
-<h2>Bookings counted in this month's booking Revenue (€{{ "%.2f"|format(summary.booking_revenue) }})</h2>
-<p class="muted">Checkout date falls in {{ year }}-{{ "%02d"|format(month) }} — this is exactly what's summed above. Plus €{{ "%.2f"|format(summary.extra_revenue) }} from <a href="/ledger">Extra Revenue</a> not shown here.</p>
-<table>
-  <thead>
-    <tr>
-      <th>Booking ID</th>
-      <th>Guest</th>
-      <th>Cabin</th>
-      <th>Check-in</th>
-      <th>Check-out</th>
-      <th>Revenue</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for booking in revenue_bookings %}
-    <tr>
-      <td><a class="rowlink" href="/bookings/{{ booking.id }}">{{ booking.external_id }}</a></td>
-      <td>{{ booking.guest_name or "—" }}</td>
-      <td>{{ booking.cabin.name }}</td>
-      <td>{{ booking.check_in }}</td>
-      <td>{{ booking.check_out }}</td>
-      <td>€{{ "%.2f"|format(booking.total_price) }}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" class="muted">No bookings checking out this month yet.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+<h2>Occupancy — next 3 months</h2>
+<div class="bar-chart">
+  {% for m in occupancy_months %}
+  <div class="bar-chart-col">
+    <div class="bar-chart-track">
+      <div class="bar-chart-fill" style="height: {{ (m.rate * 100)|round(0, 'floor') }}%;"></div>
+    </div>
+    <div class="bar-chart-value">{{ "%.0f"|format(m.rate * 100) }}%</div>
+    <div class="bar-chart-label">{{ m.label }}</div>
+  </div>
+  {% endfor %}
+</div>
 {% endblock %}
