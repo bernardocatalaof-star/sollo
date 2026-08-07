@@ -31,7 +31,7 @@ def test_cabin_colors_uses_fixed_colors_for_santiago_and_olivia(db_session):
     olivia, santiago = _seed(db_session)
     colors = cabin_colors(db_session)
     assert colors[santiago.id] == "#4f8cff"
-    assert colors[olivia.id] == "#ff6fae"
+    assert colors[olivia.id] == "#ffa8d0"
 
 
 def test_cabin_colors_falls_back_to_palette_for_other_names(db_session):
@@ -39,7 +39,7 @@ def test_cabin_colors_falls_back_to_palette_for_other_names(db_session):
     db_session.add(other)
     db_session.commit()
     colors = cabin_colors(db_session)
-    assert colors[other.id] not in ("#4f8cff", "#ff6fae")
+    assert colors[other.id] not in ("#4f8cff", "#ffa8d0")
 
 
 def _all_bars(grid):

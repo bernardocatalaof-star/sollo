@@ -17,7 +17,7 @@ from app.models import Booking, Cabin
 # fallback palette below (stable as long as the cabin list doesn't change).
 _NAMED_COLORS = {
     "santiago": "#4f8cff",  # blue
-    "olivia": "#ff6fae",  # pink
+    "olivia": "#ffa8d0",  # light pink
 }
 _PALETTE = [
     "#3ecf8e", "#e8b339", "#a97ff0", "#3ac1c9", "#f0955d",
