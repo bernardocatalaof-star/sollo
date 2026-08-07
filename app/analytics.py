@@ -239,18 +239,11 @@ def sales_in_month(db: Session, year: int, month: int) -> SalesSummary:
     )
 
 
-@dataclass
-class MonthRevenue:
-    year: int
-    month: int
-    label: str
-    amount: float
-
-
-def revenue_by_month(db: Session) -> list[MonthRevenue]:
-    """Revenue (bookings + extra) for every month with any activity -- from the
-    earliest checkout/extra-revenue entry on record through the latest, which
-    naturally includes future months for stays already booked ahead."""
+def _activity_month_range(db: Session) -> tuple[tuple[int, int], tuple[int, int]]:
+    """(start_year, start_month), (end_year, end_month) spanning every month with
+    any booking or Extra Revenue activity -- from the earliest entry on record
+    through the latest, which naturally includes future months for stays already
+    booked ahead. Falls back to just the current month when there's no data yet."""
     from sqlalchemy import func
 
     min_checkout = db.query(func.min(Booking.check_out)).scalar()
@@ -263,12 +256,23 @@ def revenue_by_month(db: Session) -> list[MonthRevenue]:
 
     if not starts:
         today = date.today()
-        start_year, start_month = today.year, today.month
-        end_year, end_month = today.year, today.month
-    else:
-        start, end = min(starts), max(ends)
-        start_year, start_month = start.year, start.month
-        end_year, end_month = end.year, end.month
+        return (today.year, today.month), (today.year, today.month)
+
+    start, end = min(starts), max(ends)
+    return (start.year, start.month), (end.year, end.month)
+
+
+@dataclass
+class MonthRevenue:
+    year: int
+    month: int
+    label: str
+    amount: float
+
+
+def revenue_by_month(db: Session) -> list[MonthRevenue]:
+    """Revenue (bookings + extra) for every month with any activity."""
+    (start_year, start_month), (end_year, end_month) = _activity_month_range(db)
 
     results = []
     y, m = start_year, start_month
@@ -284,5 +288,29 @@ def revenue_by_month(db: Session) -> list[MonthRevenue]:
                 amount=round(booking_revenue + extra_revenue, 2),
             )
         )
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return results
+
+
+@dataclass
+class MonthProfit:
+    year: int
+    month: int
+    label: str
+    amount: float
+
+
+def profit_by_month(db: Session) -> list[MonthProfit]:
+    """Profit (Revenue minus all costs, including fixed monthly costs) for every
+    month with any activity -- same range as revenue_by_month. Since fixed costs
+    apply every month regardless of bookings, a month with no activity still
+    shows up as a loss equal to that month's fixed costs."""
+    (start_year, start_month), (end_year, end_month) = _activity_month_range(db)
+
+    results = []
+    y, m = start_year, start_month
+    while (y, m) <= (end_year, end_month):
+        profit = financial_summary(db, y, m).profit
+        results.append(MonthProfit(year=y, month=m, label=date(y, m, 1).strftime("%b %Y"), amount=profit))
         y, m = (y + 1, 1) if m == 12 else (y, m + 1)
     return results

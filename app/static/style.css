@@ -141,6 +141,33 @@ button.danger { background: var(--bad); }
 .bar-chart-label { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
 .bar-chart-col.current .bar-chart-label { color: var(--good); font-weight: 600; }
 
+/* Diverging chart: a zero line at 50% height, positive bars grow up from it,
+   negative bars grow down -- needs relative/absolute positioning instead of
+   the flex "grow from the bottom" trick the plain bar chart uses. */
+.profit-chart-track {
+  position: relative;
+  width: 100%;
+  max-width: 64px;
+  height: 140px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.profit-chart-zero {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--border);
+}
+
+.profit-chart-fill { position: absolute; left: 0; right: 0; }
+.profit-chart-fill.good-fill { background: var(--good); }
+.profit-chart-fill.bad { background: var(--bad); }
+
 .goal-bar {
   width: 100%;
   height: 28px;

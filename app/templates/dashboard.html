@@ -67,13 +67,38 @@
     {% endfor %}
   </div>
 </div>
+
+<h2>Profit by month</h2>
+<p class="muted">Revenue minus all costs (landowner, supplies, fixed) per month — fixed costs still apply even in months with no bookings, so those show as a loss.</p>
+<div class="bar-chart-scroll" id="profit-chart-scroll">
+  <div class="bar-chart profit-chart">
+    {% set max_abs_profit = profit_months|map(attribute="amount")|map("abs")|max %}
+    {% for m in profit_months %}
+    <div class="bar-chart-col {{ 'current' if (m.year, m.month) == (year, month) else '' }}" id="{{ 'profit-chart-current' if (m.year, m.month) == (year, month) else '' }}">
+      <div class="profit-chart-track">
+        <div class="profit-chart-zero"></div>
+        {% set pct = ((m.amount|abs / max_abs_profit * 50) if max_abs_profit else 0)|round(0, 'floor') %}
+        <div class="profit-chart-fill {{ 'bad' if m.amount < 0 else 'good-fill' }}"
+             style="height: {{ pct }}%; {{ 'top: 50%;' if m.amount < 0 else 'bottom: 50%;' }}"></div>
+      </div>
+      <div class="bar-chart-value {{ 'bad' if m.amount < 0 else 'good' }}">€{{ "%.0f"|format(m.amount) }}</div>
+      <div class="bar-chart-label">{{ m.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
 <script>
-  requestAnimationFrame(() => {
-    const el = document.getElementById("revenue-chart-current");
-    const container = document.getElementById("revenue-chart-scroll");
-    if (el && container) {
-      container.scrollLeft = el.offsetLeft - container.clientWidth / 2 + el.clientWidth / 2;
-    }
-  });
+  function centerCurrentColumn(currentId, containerId) {
+    requestAnimationFrame(() => {
+      const el = document.getElementById(currentId);
+      const container = document.getElementById(containerId);
+      if (el && container) {
+        container.scrollLeft = el.offsetLeft - container.clientWidth / 2 + el.clientWidth / 2;
+      }
+    });
+  }
+  centerCurrentColumn("revenue-chart-current", "revenue-chart-scroll");
+  centerCurrentColumn("profit-chart-current", "profit-chart-scroll");
 </script>
 {% endblock %}

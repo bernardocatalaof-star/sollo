@@ -4,6 +4,7 @@ from app.analytics import (
     financial_summary,
     fixed_costs_for_month,
     landowner_statement,
+    profit_by_month,
     profit_year_to_date,
     revenue_by_month,
     sales_in_month,
@@ -220,3 +221,28 @@ def test_profit_year_to_date_sums_january_through_given_month(db_session):
     # (no bookings) still drag the total down by their fixed costs alone.
     jan_to_july_fixed_costs = sum(fixed_costs_for_month(db_session, 2026, m).total for m in range(1, 8))
     assert ytd == round(financial_summary(db_session, 2026, 8).profit - jan_to_july_fixed_costs, 2)
+
+
+def test_profit_by_month_matches_revenue_by_month_range(db_session):
+    _seed(db_session)
+    revenue_months = revenue_by_month(db_session)
+    profit_months = profit_by_month(db_session)
+    assert [(m.year, m.month) for m in profit_months] == [(m.year, m.month) for m in revenue_months]
+
+
+def test_profit_by_month_values_match_financial_summary_profit(db_session):
+    _seed(db_session)
+    profit_months = profit_by_month(db_session)
+    for m in profit_months:
+        assert m.amount == financial_summary(db_session, m.year, m.month).profit
+
+
+def test_profit_by_month_reflects_fixed_costs_even_on_a_slow_month(db_session):
+    _seed(db_session)  # only 2 small bookings in August, 1 in September
+    profit_months = profit_by_month(db_session)
+    august = next(m for m in profit_months if (m.year, m.month) == (2026, 8))
+    assert august.amount == financial_summary(db_session, 2026, 8).profit
+    # Revenue (500) doesn't cover landowner + supply + fixed costs this small --
+    # confirms fixed costs are actually landing in the monthly figure, not just
+    # in the standalone fixed_costs_for_month() helper.
+    assert august.amount < 0
