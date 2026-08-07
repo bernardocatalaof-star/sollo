@@ -1,6 +1,7 @@
 import os
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import settings
@@ -38,3 +39,24 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# Base.metadata.create_all() only creates tables that don't exist yet -- it never
+# alters an existing table for a column added later in a model. Tracking each such
+# addition here keeps a hosted DB (which persists across deploys, unlike a local
+# SQLite file recreated from a fresh clone) in sync without pulling in a full
+# migration framework for a single-developer app this size.
+_COLUMN_MIGRATIONS = [
+    ("bookings", "booked_at", "DATE"),
+]
+
+
+def run_schema_migrations(engine: Engine) -> None:
+    inspector = inspect(engine)
+    for table, column, col_type in _COLUMN_MIGRATIONS:
+        if table not in inspector.get_table_names():
+            continue  # fresh DB -- create_all() already added it via the model
+        existing = {c["name"] for c in inspector.get_columns(table)}
+        if column not in existing:
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))

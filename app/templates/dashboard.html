@@ -33,6 +33,11 @@
     <div class="label">Owed to landowner</div>
     <div class="value">€{{ "%.2f"|format(statement.total_owed) }}</div>
   </div>
+  <div class="card">
+    <div class="label">Sales this month</div>
+    <div class="value">€{{ "%.2f"|format(sales.total_amount) }}</div>
+    <div class="muted">{{ sales.count }} booking{{ "" if sales.count == 1 else "s" }} made — vs. Revenue above, which is check-outs</div>
+  </div>
 </div>
 
 <form class="inline" method="post" action="/sync">

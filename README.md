@@ -18,10 +18,16 @@ summary.
     the calendar month of checkout, since that's when the clean happens.
 - **Flags** — free-text issues/occurrences (damage, complaint, note...) attached to
   any booking.
-- **Expenses** — manually entered monthly costs (e.g. supplies) not tied to a stay.
+- **Calendar** (`/calendar`) — month grid showing which cabin is occupied by which
+  guest, colour-coded per cabin.
+- **Ledger** (`/ledger`) — manually entered costs (e.g. supplies) and extra income
+  received outside the Sheet (e.g. a bank transfer for a gift card).
 - **Monthly close-out** (`/monthly`) — landowner statement (what you owe them, split
   by land fee vs. cleaning fee, per cabin) plus revenue, total costs, occupancy rate,
   and profit for the month.
+- **Dashboard** — Revenue (checkout-based), Sales this month (bookings actually
+  *made* this month, regardless of when they check in/out), and an occupancy
+  forecast for the next 3 months.
 
 ## Setup
 
@@ -116,11 +122,17 @@ COL_CUSTOMER_LAST_NAME=customer_last_name
 COL_CABIN=products
 COL_CHECK_IN=start_on
 COL_CHECK_OUT=end_on
+COL_BOOKED_AT=booked_at
 COL_TOTAL_PRICE=net_paid
 COL_BOOKING_SOURCE=sales_channel
 COL_STATUS=state
 BILLABLE_STATES=completed
 ```
+
+`COL_BOOKED_AT` is the date the reservation was actually made (not check-in/out) —
+it only powers the Dashboard's "Sales this month" card. If your sheet doesn't have
+an equivalent column, leave the setting as-is; missing or unparseable values are
+just left blank rather than failing the sync.
 
 If your sheet instead has one plain "Guest Name" column, set `COL_GUEST_NAME` to it
 and the first/last name columns are ignored. If there's no unique reservation ID

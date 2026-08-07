@@ -1,7 +1,7 @@
 from datetime import date
 
 from app.models import Booking, Cabin
-from app.sheets_sync import _extract_cabin_name, _parse_date, sync_bookings
+from app.sheets_sync import _extract_cabin_name, _parse_date, _parse_optional_date, sync_bookings
 
 
 def test_parse_date_handles_iso_format_without_swapping_month_and_day():
@@ -14,6 +14,19 @@ def test_parse_date_handles_iso_datetime_with_time_component():
 
 def test_parse_date_handles_european_day_first_format():
     assert _parse_date("05/08/2026") == date(2026, 8, 5)
+
+
+def test_parse_optional_date_returns_none_for_missing_value():
+    assert _parse_optional_date(None) is None
+    assert _parse_optional_date("") is None
+
+
+def test_parse_optional_date_returns_none_for_unparseable_value_instead_of_raising():
+    assert _parse_optional_date("not a date") is None
+
+
+def test_parse_optional_date_parses_a_valid_date():
+    assert _parse_optional_date("2026-07-15") == date(2026, 7, 15)
 
 
 def test_extract_cabin_name_from_plain_text():
@@ -58,6 +71,30 @@ def test_sync_is_idempotent_on_second_run(db_session, monkeypatch):
     assert result.created == 0
     assert result.updated == 6
     assert db_session.query(Booking).count() == 6
+
+
+def test_sync_stores_booked_at_from_sheet(db_session, monkeypatch):
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", "data/sample_bookings.csv")
+
+    sync_bookings(db_session)
+
+    booking = db_session.query(Booking).filter(Booking.external_id == "R-1001").first()
+    assert booking.booked_at == date(2026, 7, 15)
+
+
+def test_sync_leaves_booked_at_blank_when_column_missing_or_unparseable(db_session, monkeypatch, tmp_path):
+    csv_path = tmp_path / "bookings.csv"
+    header = "reference,state,customer_first_name,customer_last_name,products,start_on,end_on,net_paid\n"
+    row = "R-9,completed,Jane,Doe,Cabin 1,2026-08-01,2026-08-03,100.00\n"
+    csv_path.write_text(header + row)
+
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", str(csv_path))
+    sync_bookings(db_session)
+
+    booking = db_session.query(Booking).filter(Booking.external_id == "R-9").first()
+    assert booking.booked_at is None
 
 
 def test_sync_removes_booking_that_became_non_billable(db_session, monkeypatch, tmp_path):

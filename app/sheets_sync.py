@@ -163,6 +163,15 @@ def _parse_date(value) -> date:
     return dateutil_parser.parse(text, dayfirst=True).date()
 
 
+def _parse_optional_date(value) -> date | None:
+    if value in (None, ""):
+        return None
+    try:
+        return _parse_date(value)
+    except (ValueError, OverflowError):
+        return None
+
+
 def _parse_price(value) -> float:
     if value in (None, ""):
         return 0.0
@@ -284,6 +293,7 @@ def sync_bookings(db: Session) -> SyncResult:
             guest_name=_resolve_guest_name(row),
             check_in=check_in,
             check_out=check_out,
+            booked_at=_parse_optional_date(row.get(settings.col_booked_at)),
             total_price=_parse_price(row.get(settings.col_total_price)),
             booking_source=str(row.get(settings.col_booking_source, "")).strip(),
             status=str(row.get(settings.col_status, "")).strip(),

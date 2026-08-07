@@ -28,6 +28,7 @@ class Booking(Base):
     guest_name: Mapped[str] = mapped_column(String(200), default="")
     check_in: Mapped[date] = mapped_column(Date)
     check_out: Mapped[date] = mapped_column(Date)
+    booked_at: Mapped[date | None] = mapped_column(Date, nullable=True)  # date the reservation was made
     total_price: Mapped[float] = mapped_column(Float, default=0.0)
     booking_source: Mapped[str] = mapped_column(String(120), default="")
     status: Mapped[str] = mapped_column(String(60), default="")

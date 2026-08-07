@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     col_cabin: str = "products"
     col_check_in: str = "start_on"
     col_check_out: str = "end_on"
+    col_booked_at: str = "booked_at"  # date the reservation was made, for the Sales metric
     col_total_price: str = "net_paid"
     col_booking_source: str = "sales_channel"
     col_status: str = "state"

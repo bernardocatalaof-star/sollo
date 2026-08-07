@@ -5,13 +5,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.analytics import financial_summary, landowner_statement, upcoming_occupancy
+from app.analytics import financial_summary, landowner_statement, sales_in_month, upcoming_occupancy
 from app.config import settings
-from app.database import Base, SessionLocal, engine
+from app.database import Base, SessionLocal, engine, run_schema_migrations
 from app.routers import auth, bookings, calendar, expenses, extra_revenue, ledger, monthly
 from app.sheets_sync import oauth_is_connected
 
 Base.metadata.create_all(bind=engine)
+run_schema_migrations(engine)
 
 app = FastAPI(title="Sollo — Guest & Operations Management")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -34,6 +35,7 @@ def dashboard(request: Request):
         statement = landowner_statement(db, today.year, today.month)
         summary = financial_summary(db, today.year, today.month)
         occupancy_months = upcoming_occupancy(db, today.year, today.month, count=3)
+        sales = sales_in_month(db, today.year, today.month)
         needs_google_connect = settings.sheets_source_mode == "oauth_user" and not oauth_is_connected(db)
     finally:
         db.close()
@@ -46,6 +48,7 @@ def dashboard(request: Request):
             "statement": statement,
             "summary": summary,
             "occupancy_months": occupancy_months,
+            "sales": sales,
             "needs_google_connect": needs_google_connect,
         },
     )

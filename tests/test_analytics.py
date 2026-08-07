@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.analytics import financial_summary, landowner_statement, upcoming_occupancy
+from app.analytics import financial_summary, landowner_statement, sales_in_month, upcoming_occupancy
 from app.models import Booking, Cabin, Expense, ExtraRevenue
 
 
@@ -88,6 +88,31 @@ def test_financial_summary_includes_extra_revenue_in_total(db_session):
     assert summary.extra_revenue == 125.0
     assert summary.total_revenue == 625.0
     assert summary.profit == round(summary.total_revenue - summary.total_costs, 2)
+
+
+def test_sales_in_month_counts_by_booked_at_not_checkout(db_session):
+    cabin = Cabin(name="Cabin 1")
+    db_session.add(cabin)
+    db_session.flush()
+    db_session.add_all(
+        [
+            # booked in August, checks out in September -- should count as an August sale
+            Booking(external_id="A", cabin=cabin, guest_name="A", check_in=date(2026, 8, 30),
+                    check_out=date(2026, 9, 2), booked_at=date(2026, 8, 15), total_price=150.0),
+            # booked in July, checks out in August -- should NOT count as an August sale
+            Booking(external_id="B", cabin=cabin, guest_name="B", check_in=date(2026, 8, 1),
+                    check_out=date(2026, 8, 3), booked_at=date(2026, 7, 20), total_price=100.0),
+            # no booked_at at all -- excluded, not crashing
+            Booking(external_id="C", cabin=cabin, guest_name="C", check_in=date(2026, 8, 5),
+                    check_out=date(2026, 8, 6), booked_at=None, total_price=80.0),
+        ]
+    )
+    db_session.commit()
+
+    sales = sales_in_month(db_session, 2026, 8)
+
+    assert sales.count == 1
+    assert sales.total_amount == 150.0
 
 
 def test_upcoming_occupancy_returns_one_entry_per_month_and_rolls_over_year(db_session):

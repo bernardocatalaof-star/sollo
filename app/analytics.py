@@ -170,6 +170,32 @@ def financial_summary(db: Session, year: int, month: int) -> FinancialSummary:
 
 
 @dataclass
+class SalesSummary:
+    year: int
+    month: int
+    total_amount: float = 0.0
+    count: int = 0
+
+
+def sales_in_month(db: Session, year: int, month: int) -> SalesSummary:
+    """Bookings actually MADE (reservation date, not check-in/check-out) this
+    month -- a different question from Revenue, which is booked to the
+    checkout month regardless of when the reservation happened."""
+    start, end = _month_bounds(year, month)
+    bookings = (
+        db.query(Booking)
+        .filter(Booking.booked_at.isnot(None), Booking.booked_at >= start, Booking.booked_at <= end)
+        .all()
+    )
+    return SalesSummary(
+        year=year,
+        month=month,
+        total_amount=round(sum(b.total_price for b in bookings), 2),
+        count=len(bookings),
+    )
+
+
+@dataclass
 class MonthOccupancy:
     year: int
     month: int
