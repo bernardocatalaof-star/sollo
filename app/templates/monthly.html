@@ -41,6 +41,14 @@
   </div>
   <div class="card"><div class="label">Landowner costs</div><div class="value">€{{ "%.2f"|format(summary.total_landowner_costs) }}</div></div>
   <div class="card"><div class="label">Supply/other costs</div><div class="value">€{{ "%.2f"|format(summary.total_supply_costs) }}</div></div>
+  <div class="card"><div class="label">Fixed operating costs</div><div class="value">€{{ "%.2f"|format(summary.fixed_costs.total) }}</div>
+    <div class="muted">
+      €{{ "%.2f"|format(summary.fixed_costs.website_total) }} website
+      (€{{ "%.2f"|format(summary.fixed_costs.website_fixed) }} + €{{ "%.2f"|format(summary.fixed_costs.website_percentage) }} 4% + €{{ "%.2f"|format(summary.fixed_costs.website_per_transaction) }} per-txn)
+      · €{{ "%.2f"|format(summary.fixed_costs.tech_tools) }} tech tools
+      · €{{ "%.2f"|format(summary.fixed_costs.accounting) }} accounting
+    </div>
+  </div>
   <div class="card"><div class="label">Total costs</div><div class="value">€{{ "%.2f"|format(summary.total_costs) }}</div></div>
   <div class="card"><div class="label">Profit</div><div class="value {{ 'good' if summary.profit >= 0 else 'bad' }}">€{{ "%.2f"|format(summary.profit) }}</div></div>
   <div class="card"><div class="label">Occupancy rate</div><div class="value">{{ "%.1f"|format(summary.occupancy_rate * 100) }}%</div>

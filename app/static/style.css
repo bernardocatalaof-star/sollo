@@ -141,6 +141,19 @@ button.danger { background: var(--bad); }
 .bar-chart-label { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
 .bar-chart-col.current .bar-chart-label { color: var(--good); font-weight: 600; }
 
+.goal-bar {
+  width: 100%;
+  height: 28px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0.5rem 0 0.35rem;
+}
+
+.goal-bar-fill { height: 100%; background: var(--good); border-radius: 8px 0 0 8px; transition: width 0.3s ease; }
+.goal-bar-fill.bad { background: var(--bad); }
+
 .month-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 .month-nav a { color: var(--accent); text-decoration: none; }
 

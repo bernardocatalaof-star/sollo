@@ -52,5 +52,18 @@ class Settings(BaseSettings):
     overnight_fee_per_night: float = 19.8
     holiday_country: str = "PT"
 
+    # Fixed monthly operating costs (EUR), deducted from Profit. Website costs are
+    # a flat fee plus a per-transaction percentage + flat fee, mirroring a typical
+    # payment processor -- charged on bookings synced from the Sheet (not manual
+    # Extra Revenue entries), attributed to the same month as Revenue (checkout).
+    website_fixed_fee: float = 200.0
+    website_percentage_fee: float = 0.04
+    website_per_transaction_fee: float = 0.25
+    tech_tools_fee: float = 66.0
+    accounting_fee: float = 200.0
+
+    # Dashboard "Profit year-to-date" goal bar target (EUR/year).
+    annual_profit_target: float = 36000.0
+
 
 settings = Settings()

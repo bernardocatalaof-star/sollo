@@ -18,8 +18,9 @@
     <div class="muted">€{{ "%.2f"|format(summary.booking_revenue) }} bookings + €{{ "%.2f"|format(summary.extra_revenue) }} <a href="/ledger">extra</a></div>
   </div>
   <div class="card">
-    <div class="label">Costs (landowner + supplies)</div>
+    <div class="label">Costs (landowner + supplies + fixed)</div>
     <div class="value">€{{ "%.2f"|format(summary.total_costs) }}</div>
+    <div class="muted">€{{ "%.2f"|format(summary.total_landowner_costs) }} landowner + €{{ "%.2f"|format(summary.total_supply_costs) }} supplies + €{{ "%.2f"|format(summary.fixed_costs.total) }} fixed</div>
   </div>
   <div class="card">
     <div class="label">Profit</div>
@@ -43,6 +44,12 @@
 <form class="inline" method="post" action="/sync">
   <button type="submit" {{ "disabled" if needs_google_connect else "" }}>Sync bookings from Sheet</button>
 </form>
+
+<h2>Profit year-to-date — €{{ "%.0f"|format(annual_profit_target) }} target</h2>
+<div class="goal-bar">
+  <div class="goal-bar-fill {{ 'bad' if profit_ytd < 0 else '' }}" style="width: {{ profit_ytd_pct }}%;"></div>
+</div>
+<p class="muted">€{{ "%.2f"|format(profit_ytd) }} of €{{ "%.0f"|format(annual_profit_target) }} ({{ "%.0f"|format(profit_ytd_pct) }}%) — Jan–{{ "%02d"|format(month) }} {{ year }}</p>
 
 <h2>Revenue by month</h2>
 <p class="muted">Every month with activity on record, including future months already booked — scroll sideways to see the rest.</p>

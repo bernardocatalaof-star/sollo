@@ -109,6 +109,42 @@ def landowner_statement(db: Session, year: int, month: int) -> LandownerStatemen
 
 
 @dataclass
+class FixedCosts:
+    """Recurring monthly operating costs, deducted from Profit alongside the
+    landowner and supply costs. Website costs mirror a typical payment
+    processor: a flat monthly fee plus a percentage + flat fee per transaction,
+    charged on bookings synced from the Sheet (not manual Extra Revenue entries),
+    attributed to the same month as Revenue (checkout)."""
+
+    website_fixed: float = 0.0
+    website_percentage: float = 0.0
+    website_per_transaction: float = 0.0
+    tech_tools: float = 0.0
+    accounting: float = 0.0
+
+    @property
+    def website_total(self) -> float:
+        return round(self.website_fixed + self.website_percentage + self.website_per_transaction, 2)
+
+    @property
+    def total(self) -> float:
+        return round(self.website_total + self.tech_tools + self.accounting, 2)
+
+
+def fixed_costs_for_month(db: Session, year: int, month: int) -> FixedCosts:
+    closing_bookings = bookings_closing_in_month(db, year, month)
+    net_paid_total = sum(b.total_price for b in closing_bookings)
+
+    return FixedCosts(
+        website_fixed=settings.website_fixed_fee,
+        website_percentage=round(net_paid_total * settings.website_percentage_fee, 2),
+        website_per_transaction=round(len(closing_bookings) * settings.website_per_transaction_fee, 2),
+        tech_tools=settings.tech_tools_fee,
+        accounting=settings.accounting_fee,
+    )
+
+
+@dataclass
 class FinancialSummary:
     year: int
     month: int
@@ -116,6 +152,7 @@ class FinancialSummary:
     extra_revenue: float = 0.0
     total_landowner_costs: float = 0.0
     total_supply_costs: float = 0.0
+    fixed_costs: FixedCosts = field(default_factory=FixedCosts)
     stays_closed: int = 0
     nights_occupied: int = 0
     nights_available: int = 0
@@ -127,7 +164,7 @@ class FinancialSummary:
 
     @property
     def total_costs(self) -> float:
-        return round(self.total_landowner_costs + self.total_supply_costs, 2)
+        return round(self.total_landowner_costs + self.total_supply_costs + self.fixed_costs.total, 2)
 
     @property
     def profit(self) -> float:
@@ -160,6 +197,8 @@ def financial_summary(db: Session, year: int, month: int) -> FinancialSummary:
     )
     summary.total_supply_costs = round(sum(e.amount for e in supply_total), 2)
 
+    summary.fixed_costs = fixed_costs_for_month(db, year, month)
+
     summary.nights_occupied = sum(nights for _, nights in _nights_in_month(db, year, month))
 
     days_in_month = calendar.monthrange(year, month)[1]
@@ -167,6 +206,11 @@ def financial_summary(db: Session, year: int, month: int) -> FinancialSummary:
     summary.nights_available = days_in_month * cabin_count
 
     return summary
+
+
+def profit_year_to_date(db: Session, year: int, month: int) -> float:
+    """Sum of each month's Profit from January through `month` of `year`."""
+    return round(sum(financial_summary(db, year, m).profit for m in range(1, month + 1)), 2)
 
 
 @dataclass

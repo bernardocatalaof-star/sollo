@@ -164,6 +164,13 @@ platform exports and typical European sheets.
   `Cabin` column — no separate setup needed.
 - **Fee schedule** (€19.80/night, €33/€40 cleaning, PT holidays) is hardcoded in
   `app/config.py` — change the values there if rates change.
+- **Fixed operating costs** (website, tech tools, accounting) are deducted from
+  Profit every month regardless of activity — including months with zero
+  bookings, which is why Profit year-to-date can start deeply negative if you
+  view a year before you had any real bookings synced. Defaults in
+  `app/config.py`: website €200 fixed + 4% + €0.25 per booking that closes in the
+  month (not manual Extra Revenue entries), €66/month tech tools, €200/month
+  accounting.
 - **Occupancy rate** and the **land fee** both split a stay's nights by calendar
   month — a stay spanning a month boundary contributes nights (and land fee) to
   both months, in proportion to how many nights actually fall in each.

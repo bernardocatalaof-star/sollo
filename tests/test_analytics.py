@@ -1,6 +1,13 @@
 from datetime import date
 
-from app.analytics import financial_summary, landowner_statement, revenue_by_month, sales_in_month
+from app.analytics import (
+    financial_summary,
+    fixed_costs_for_month,
+    landowner_statement,
+    profit_year_to_date,
+    revenue_by_month,
+    sales_in_month,
+)
 from app.models import Booking, Cabin, Expense, ExtraRevenue
 
 
@@ -62,7 +69,9 @@ def test_financial_summary_includes_supply_expenses(db_session):
     _seed(db_session)
     summary = financial_summary(db_session, 2026, 8)
     assert summary.total_supply_costs == 25.0
-    assert summary.total_costs == round(summary.total_landowner_costs + 25.0, 2)
+    assert summary.total_costs == round(
+        summary.total_landowner_costs + 25.0 + summary.fixed_costs.total, 2
+    )
     assert summary.profit == round(summary.total_revenue - summary.total_costs, 2)
 
 
@@ -158,3 +167,56 @@ def test_revenue_by_month_defaults_to_current_month_when_no_data(db_session):
     assert len(months) == 1
     assert (months[0].year, months[0].month) == (today.year, today.month)
     assert months[0].amount == 0.0
+
+
+def test_fixed_costs_for_month_charges_flat_fees_even_with_no_bookings(db_session):
+    costs = fixed_costs_for_month(db_session, 2026, 8)
+    assert costs.website_fixed == 200.0
+    assert costs.website_percentage == 0.0
+    assert costs.website_per_transaction == 0.0
+    assert costs.tech_tools == 66.0
+    assert costs.accounting == 200.0
+    assert costs.website_total == 200.0
+    assert costs.total == 466.0
+
+
+def test_fixed_costs_for_month_adds_website_percentage_and_per_transaction_fee(db_session):
+    _seed(db_session)  # R-1 (320) + R-2 (180) close in August = 500 net_paid, 2 transactions
+
+    costs = fixed_costs_for_month(db_session, 2026, 8)
+
+    assert costs.website_percentage == 20.0  # 4% of 500
+    assert costs.website_per_transaction == 0.5  # 2 x 0.25
+    assert costs.website_total == 220.5  # 200 + 20 + 0.5
+    assert costs.total == round(220.5 + 66.0 + 200.0, 2)
+
+
+def test_fixed_costs_only_counts_bookings_closing_in_month_not_extra_revenue(db_session):
+    _seed(db_session)
+    db_session.add(ExtraRevenue(month=date(2026, 8, 1), category="booking", description="", amount=1000.0))
+    db_session.commit()
+
+    costs = fixed_costs_for_month(db_session, 2026, 8)
+
+    # Extra Revenue doesn't go through the website's payment processor, so it
+    # must not affect the per-transaction/percentage website fee.
+    assert costs.website_percentage == 20.0
+    assert costs.website_per_transaction == 0.5
+
+
+def test_financial_summary_deducts_fixed_costs_from_profit(db_session):
+    _seed(db_session)
+    summary = financial_summary(db_session, 2026, 8)
+    assert summary.fixed_costs.total == round(220.5 + 66.0 + 200.0, 2)
+    assert summary.profit == round(summary.total_revenue - summary.total_costs, 2)
+
+
+def test_profit_year_to_date_sums_january_through_given_month(db_session):
+    _seed(db_session)
+    ytd = profit_year_to_date(db_session, 2026, 8)
+    expected = round(sum(financial_summary(db_session, 2026, m).profit for m in range(1, 9)), 2)
+    assert ytd == expected
+    # Fixed costs are charged every month regardless of activity, so January-July
+    # (no bookings) still drag the total down by their fixed costs alone.
+    jan_to_july_fixed_costs = sum(fixed_costs_for_month(db_session, 2026, m).total for m in range(1, 8))
+    assert ytd == round(financial_summary(db_session, 2026, 8).profit - jan_to_july_fixed_costs, 2)
