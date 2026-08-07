@@ -4,6 +4,7 @@
 <p><a href="/bookings" class="muted">&larr; Back to bookings</a></p>
 <h1>{{ booking.guest_name or "Guest" }}</h1>
 <p class="muted">{{ booking.cabin.name }} · {{ booking.check_in }} → {{ booking.check_out }} · {{ booking.booking_source or "unknown source" }}</p>
+<p class="muted">Reference: {{ booking.external_id }} · Booked on: {{ booking.booked_at if booking.booked_at else "not set — check COL_BOOKED_AT / the sheet's raw value" }}</p>
 
 <div class="cards">
   <div class="card">
