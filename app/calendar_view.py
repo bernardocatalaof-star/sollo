@@ -52,6 +52,8 @@ class Bar:
     start_col: int  # 0 (Mon) .. 6 (Sun)
     span: int  # number of day-columns this bar covers in this week
     lane: int  # vertical stacking row, for overlapping stays in the same week
+    grid_start: int  # 1-indexed CSS grid line, out of 14 half-day columns per week
+    grid_end: int  # 1-indexed CSS grid line (exclusive), out of 14 half-day columns
 
 
 @dataclass
@@ -92,21 +94,33 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
             if span <= 0:
                 continue
             start_col = (overlap_start - week_start).days
-            segments.append((start_col, span, booking))
+            end_col = start_col + span
+            # A bar only starts/ends mid-cell on the actual check-in/check-out day.
+            # If it's a continuation from a previous week, or carries on into the
+            # next, it runs edge-to-edge instead -- there's no "half day" to show.
+            starts_at_checkin = overlap_start == booking.check_in
+            ends_at_checkout = overlap_end == booking.check_out and end_col < 7
+            segments.append((start_col, span, end_col, starts_at_checkin, ends_at_checkout, booking))
 
         # Greedy lane packing: place each bar in the first lane free at its start
         # column, opening a new lane only when every existing one is still busy.
         segments.sort(key=lambda s: (s[0], -s[1]))
         lane_ends: list[int] = []
         bars = []
-        for start_col, span, booking in segments:
-            end_col = start_col + span
+        for start_col, span, end_col, starts_at_checkin, ends_at_checkout, booking in segments:
             lane = next((i for i, lane_end in enumerate(lane_ends) if start_col >= lane_end), None)
             if lane is None:
                 lane = len(lane_ends)
                 lane_ends.append(end_col)
             else:
                 lane_ends[lane] = end_col
+
+            # 14 half-day columns per week (2 per day): a bar that truly starts/ends
+            # on check-in/check-out begins or finishes at that day's midpoint;
+            # otherwise it runs to the full edge of the column.
+            grid_start = 2 * start_col + 2 if starts_at_checkin else 2 * start_col + 1
+            grid_end = 2 * end_col + 2 if ends_at_checkout else 2 * end_col + 1
+
             bars.append(
                 Bar(
                     booking=booking,
@@ -114,6 +128,8 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
                     start_col=start_col,
                     span=span,
                     lane=lane,
+                    grid_start=grid_start,
+                    grid_end=grid_end,
                 )
             )
 

@@ -181,11 +181,14 @@ button.danger { background: var(--bad); }
 .cal-daynum-cell.outside { color: var(--muted); background: var(--panel); }
 .cal-daynum-cell.today { box-shadow: inset 0 0 0 2px var(--accent); }
 
+/* 14 columns = 2 half-days per day, matching the 7-day header/daynum grids above.
+   No gap or horizontal padding here -- either would shift these column lines out
+   of alignment with those grids, and a bar's start/end line needs to land exactly
+   on a check-in/check-out day's midpoint. */
 .cal-week-bars {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-  padding: 3px 4px 6px;
+  grid-template-columns: repeat(14, 1fr);
+  padding: 3px 0 6px;
 }
 
 .cal-bar {
@@ -194,6 +197,7 @@ button.danger { background: var(--bad); }
   gap: 0.25rem;
   font-size: 0.72rem;
   padding: 0.15rem 0.5rem;
+  margin: 0 2px;
   border-radius: 5px;
   border: 1px solid;
   text-decoration: none;

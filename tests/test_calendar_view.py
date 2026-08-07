@@ -62,6 +62,17 @@ def test_month_grid_renders_a_stay_as_one_bar_not_per_day_tags(db_session):
     assert bars[0].span == 3
 
 
+def test_month_grid_bar_starts_and_ends_at_the_midpoint_of_checkin_and_checkout_day(db_session):
+    _seed(db_session)
+    grid = month_grid(db_session, 2026, 8)
+    bar = next(b for b in _all_bars(grid) if b.booking.guest_name == "Ana Silva")
+    # Aug 5 2026 is a Wednesday (day index 2), Aug 8 is a Saturday (day index 5).
+    # grid line = 2*day_index + 2 lands exactly on that day's midpoint (14 half-day
+    # columns per week: 2 per day).
+    assert bar.grid_start == 2 * 2 + 2  # midpoint of Wednesday (check-in)
+    assert bar.grid_end == 2 * 5 + 2  # midpoint of Saturday (check-out)
+
+
 def test_month_grid_splits_bar_at_week_boundary(db_session):
     olivia = Cabin(name="Olivia")
     db_session.add(olivia)
@@ -80,6 +91,16 @@ def test_month_grid_splits_bar_at_week_boundary(db_session):
     bars = [b for b in _all_bars(grid) if b.booking.guest_name == "Cross Week"]
     assert len(bars) == 2  # one segment per week it touches
     assert sum(b.span for b in bars) == 4  # total nights preserved across the split
+
+    first_week_bar, second_week_bar = bars
+    # First segment: starts at check-in's midpoint (Sat, day index 5), but the stay
+    # continues past this week -- so it runs edge-to-edge to the end of the week.
+    assert first_week_bar.grid_start == 2 * 5 + 2
+    assert first_week_bar.grid_end == 2 * 7 + 1  # full end of the week (line 15)
+    # Second segment: continues from last week, so starts at the week's edge, but
+    # ends at check-out's midpoint (Wed, day index 2).
+    assert second_week_bar.grid_start == 1  # full start of the week
+    assert second_week_bar.grid_end == 2 * 2 + 2
 
 
 def test_month_grid_shows_cross_month_stay_on_boundary_days_in_both_months(db_session):
