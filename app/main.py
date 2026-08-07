@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.analytics import financial_summary, landowner_statement, sales_in_month, upcoming_occupancy
+from app.analytics import financial_summary, landowner_statement, revenue_by_month, sales_in_month
 from app.config import settings
 from app.database import Base, SessionLocal, engine, run_schema_migrations
 from app.routers import auth, bookings, calendar, expenses, extra_revenue, ledger, monthly
@@ -34,7 +34,7 @@ def dashboard(request: Request):
         today = date.today()
         statement = landowner_statement(db, today.year, today.month)
         summary = financial_summary(db, today.year, today.month)
-        occupancy_months = upcoming_occupancy(db, today.year, today.month, count=3)
+        revenue_months = revenue_by_month(db)
         sales = sales_in_month(db, today.year, today.month)
         needs_google_connect = settings.sheets_source_mode == "oauth_user" and not oauth_is_connected(db)
     finally:
@@ -47,7 +47,7 @@ def dashboard(request: Request):
             "month": today.month,
             "statement": statement,
             "summary": summary,
-            "occupancy_months": occupancy_months,
+            "revenue_months": revenue_months,
             "sales": sales,
             "needs_google_connect": needs_google_connect,
         },

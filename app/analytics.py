@@ -196,19 +196,49 @@ def sales_in_month(db: Session, year: int, month: int) -> SalesSummary:
 
 
 @dataclass
-class MonthOccupancy:
+class MonthRevenue:
     year: int
     month: int
     label: str
-    rate: float
+    amount: float
 
 
-def upcoming_occupancy(db: Session, year: int, month: int, count: int = 3) -> list[MonthOccupancy]:
-    """Occupancy rate for `count` consecutive months starting at year/month."""
+def revenue_by_month(db: Session) -> list[MonthRevenue]:
+    """Revenue (bookings + extra) for every month with any activity -- from the
+    earliest checkout/extra-revenue entry on record through the latest, which
+    naturally includes future months for stays already booked ahead."""
+    from sqlalchemy import func
+
+    min_checkout = db.query(func.min(Booking.check_out)).scalar()
+    max_checkout = db.query(func.max(Booking.check_out)).scalar()
+    min_extra = db.query(func.min(ExtraRevenue.month)).scalar()
+    max_extra = db.query(func.max(ExtraRevenue.month)).scalar()
+
+    starts = [d for d in (min_checkout, min_extra) if d]
+    ends = [d for d in (max_checkout, max_extra) if d]
+
+    if not starts:
+        today = date.today()
+        start_year, start_month = today.year, today.month
+        end_year, end_month = today.year, today.month
+    else:
+        start, end = min(starts), max(ends)
+        start_year, start_month = start.year, start.month
+        end_year, end_month = end.year, end.month
+
     results = []
-    y, m = year, month
-    for _ in range(count):
-        rate = financial_summary(db, y, m).occupancy_rate
-        results.append(MonthOccupancy(year=y, month=m, label=date(y, m, 1).strftime("%b %Y"), rate=rate))
+    y, m = start_year, start_month
+    while (y, m) <= (end_year, end_month):
+        month_start, _ = _month_bounds(y, m)
+        booking_revenue = sum(b.total_price for b in bookings_closing_in_month(db, y, m))
+        extra_revenue = sum(
+            e.amount for e in db.query(ExtraRevenue).filter(ExtraRevenue.month == month_start).all()
+        )
+        results.append(
+            MonthRevenue(
+                year=y, month=m, label=date(y, m, 1).strftime("%b %Y"),
+                amount=round(booking_revenue + extra_revenue, 2),
+            )
+        )
         y, m = (y + 1, 1) if m == 12 else (y, m + 1)
     return results

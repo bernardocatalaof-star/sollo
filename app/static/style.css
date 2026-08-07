@@ -108,18 +108,20 @@ button.danger { background: var(--bad); }
 .notice.error { background: rgba(239,90,90,0.1); border-color: var(--bad); }
 .notice a { color: var(--accent); }
 
+.bar-chart-scroll { overflow-x: auto; margin: 1rem 0; }
+
 .bar-chart {
   display: flex;
-  gap: 1.5rem;
+  gap: 1.25rem;
   align-items: flex-end;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1.25rem 1.5rem;
-  margin: 1rem 0;
+  width: max-content;
 }
 
-.bar-chart-col { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex: 1; }
+.bar-chart-col { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; flex: 0 0 64px; }
 
 .bar-chart-track {
   width: 100%;
@@ -134,8 +136,10 @@ button.danger { background: var(--bad); }
 }
 
 .bar-chart-fill { width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; }
-.bar-chart-value { font-weight: 700; font-size: 0.95rem; }
-.bar-chart-label { color: var(--muted); font-size: 0.8rem; }
+.bar-chart-col.current .bar-chart-fill { background: var(--good); }
+.bar-chart-value { font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
+.bar-chart-label { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+.bar-chart-col.current .bar-chart-label { color: var(--good); font-weight: 600; }
 
 .month-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
 .month-nav a { color: var(--accent); text-decoration: none; }

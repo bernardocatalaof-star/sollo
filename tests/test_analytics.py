@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.analytics import financial_summary, landowner_statement, sales_in_month, upcoming_occupancy
+from app.analytics import financial_summary, landowner_statement, revenue_by_month, sales_in_month
 from app.models import Booking, Cabin, Expense, ExtraRevenue
 
 
@@ -115,11 +115,46 @@ def test_sales_in_month_counts_by_booked_at_not_checkout(db_session):
     assert sales.total_amount == 150.0
 
 
-def test_upcoming_occupancy_returns_one_entry_per_month_and_rolls_over_year(db_session):
-    _seed(db_session)
-    months = upcoming_occupancy(db_session, 2026, 11, count=3)
+def test_revenue_by_month_spans_from_earliest_to_latest_activity(db_session):
+    _seed(db_session)  # bookings checking out in Aug and Sep 2026 only
 
-    assert [(m.year, m.month) for m in months] == [(2026, 11), (2026, 12), (2027, 1)]
-    assert months[0].label == "Nov 2026"
-    for m in months:
-        assert 0.0 <= m.rate <= 1.0
+    months = revenue_by_month(db_session)
+
+    assert [(m.year, m.month) for m in months] == [(2026, 8), (2026, 9)]
+    assert months[0].label == "Aug 2026"
+    assert months[0].amount == 500.0  # R-1 (320) + R-2 (180); R-3 bills in September
+    assert months[1].amount == 150.0  # R-3
+
+
+def test_revenue_by_month_includes_future_months_already_booked(db_session):
+    cabin = Cabin(name="Cabin 1")
+    db_session.add(cabin)
+    db_session.flush()
+    db_session.add(
+        Booking(external_id="FUTURE", cabin=cabin, guest_name="Future Guest",
+                check_in=date(2027, 3, 1), check_out=date(2027, 3, 3), total_price=200.0)
+    )
+    db_session.commit()
+
+    months = revenue_by_month(db_session)
+
+    assert (2027, 3) == (months[-1].year, months[-1].month)
+    assert months[-1].amount == 200.0
+
+
+def test_revenue_by_month_extends_range_to_cover_extra_revenue_entries(db_session):
+    db_session.add(ExtraRevenue(month=date(2025, 1, 1), category="booking", description="", amount=60.0))
+    db_session.commit()
+
+    months = revenue_by_month(db_session)
+
+    assert (months[0].year, months[0].month) == (2025, 1)
+    assert months[0].amount == 60.0
+
+
+def test_revenue_by_month_defaults_to_current_month_when_no_data(db_session):
+    months = revenue_by_month(db_session)
+    today = date.today()
+    assert len(months) == 1
+    assert (months[0].year, months[0].month) == (today.year, today.month)
+    assert months[0].amount == 0.0

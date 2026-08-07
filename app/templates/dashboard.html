@@ -44,16 +44,29 @@
   <button type="submit" {{ "disabled" if needs_google_connect else "" }}>Sync bookings from Sheet</button>
 </form>
 
-<h2>Occupancy — next 3 months</h2>
-<div class="bar-chart">
-  {% for m in occupancy_months %}
-  <div class="bar-chart-col">
-    <div class="bar-chart-track">
-      <div class="bar-chart-fill" style="height: {{ (m.rate * 100)|round(0, 'floor') }}%;"></div>
+<h2>Revenue by month</h2>
+<p class="muted">Every month with activity on record, including future months already booked — scroll sideways to see the rest.</p>
+<div class="bar-chart-scroll" id="revenue-chart-scroll">
+  <div class="bar-chart">
+    {% set max_amount = revenue_months|map(attribute="amount")|max %}
+    {% for m in revenue_months %}
+    <div class="bar-chart-col {{ 'current' if (m.year, m.month) == (year, month) else '' }}" id="{{ 'revenue-chart-current' if (m.year, m.month) == (year, month) else '' }}">
+      <div class="bar-chart-track">
+        <div class="bar-chart-fill" style="height: {{ ((m.amount / max_amount * 100) if max_amount else 0)|round(0, 'floor') }}%;"></div>
+      </div>
+      <div class="bar-chart-value">€{{ "%.0f"|format(m.amount) }}</div>
+      <div class="bar-chart-label">{{ m.label }}</div>
     </div>
-    <div class="bar-chart-value">{{ "%.0f"|format(m.rate * 100) }}%</div>
-    <div class="bar-chart-label">{{ m.label }}</div>
+    {% endfor %}
   </div>
-  {% endfor %}
 </div>
+<script>
+  requestAnimationFrame(() => {
+    const el = document.getElementById("revenue-chart-current");
+    const container = document.getElementById("revenue-chart-scroll");
+    if (el && container) {
+      container.scrollLeft = el.offsetLeft - container.clientWidth / 2 + el.clientWidth / 2;
+    }
+  });
+</script>
 {% endblock %}
