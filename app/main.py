@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.analytics import bookings_closing_in_month, financial_summary, landowner_statement
 from app.config import settings
 from app.database import Base, SessionLocal, engine
-from app.routers import auth, bookings, expenses, extra_revenue, monthly
+from app.routers import auth, bookings, calendar, expenses, extra_revenue, monthly
 from app.sheets_sync import oauth_is_connected
 
 Base.metadata.create_all(bind=engine)
@@ -19,6 +19,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 app.include_router(auth.router)
 app.include_router(bookings.router)
+app.include_router(calendar.router)
 app.include_router(expenses.router)
 app.include_router(extra_revenue.router)
 app.include_router(monthly.router)

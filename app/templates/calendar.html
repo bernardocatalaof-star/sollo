@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Calendar — Sollo{% endblock %}
+{% block content %}
+<h1>Calendar</h1>
+
+<div class="month-nav">
+  <a href="/calendar?year={{ prev_year }}&month={{ prev_month }}">&larr; prev</a>
+  <strong>{{ year }}-{{ "%02d"|format(month) }}</strong>
+  <a href="/calendar?year={{ next_year }}&month={{ next_month }}">next &rarr;</a>
+</div>
+
+<div class="cal-grid">
+  <div class="cal-head">Mon</div>
+  <div class="cal-head">Tue</div>
+  <div class="cal-head">Wed</div>
+  <div class="cal-head">Thu</div>
+  <div class="cal-head">Fri</div>
+  <div class="cal-head">Sat</div>
+  <div class="cal-head">Sun</div>
+
+  {% for week in grid %}
+    {% for cell in week %}
+    <div class="cal-day {{ '' if cell.in_month else 'outside' }} {{ 'today' if cell.day == today else '' }}">
+      <div class="cal-daynum">{{ cell.day.day }}</div>
+      {% for stay in cell.stays %}
+        <a class="cal-tag" href="/bookings/{{ stay.booking.id }}" style="background: {{ stay.color }}22; border-color: {{ stay.color }}; color: {{ stay.color }};" title="{{ stay.booking.cabin.name }} — {{ stay.booking.guest_name or 'Guest' }}">
+          {{ stay.booking.guest_name or "Guest" }} <span class="cal-tag-cabin">· {{ stay.booking.cabin.name }}</span>
+        </a>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  {% endfor %}
+</div>
+{% endblock %}
