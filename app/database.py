@@ -25,6 +25,11 @@ if db_path.startswith("./"):
 engine = create_engine(
     database_url,
     connect_args={"check_same_thread": False} if database_url.startswith("sqlite") else {},
+    # Hosted Postgres providers (e.g. Neon) close idle connections server-side.
+    # Without pre-ping, the pool can hand out a dead connection and the first
+    # query on it fails with "SSL connection has been closed unexpectedly" --
+    # pre-ping tests each connection and transparently reconnects if it's stale.
+    pool_pre_ping=True,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
