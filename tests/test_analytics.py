@@ -189,7 +189,21 @@ def test_fixed_costs_for_month_adds_website_percentage_and_per_transaction_fee(d
     assert costs.website_percentage == 20.0  # 4% of 500
     assert costs.website_per_transaction == 0.5  # 2 x 0.25
     assert costs.website_total == 220.5  # 200 + 20 + 0.5
-    assert costs.total == round(220.5 + 66.0 + 200.0, 2)
+    # R-1, R-2, R-3 all check in during August (R-3 checks out in September)
+    assert costs.checkin_supplies == 15.0  # 3 x 5.0
+    assert costs.total == round(220.5 + 66.0 + 200.0 + 15.0, 2)
+
+
+def test_checkin_supplies_charged_by_checkin_month_not_checkout_month(db_session):
+    _seed(db_session)
+    august = fixed_costs_for_month(db_session, 2026, 8)
+    september = fixed_costs_for_month(db_session, 2026, 9)
+
+    # R-3 checks in Aug 30 but checks out Sep 2 -- the supply is handed out at
+    # check-in, so it belongs to August even though R-3's cleaning/revenue bill
+    # in September.
+    assert august.checkin_supplies == 15.0  # R-1 + R-2 + R-3, all check in in August
+    assert september.checkin_supplies == 0.0  # no booking checks in during September
 
 
 def test_fixed_costs_only_counts_bookings_closing_in_month_not_extra_revenue(db_session):
@@ -208,7 +222,7 @@ def test_fixed_costs_only_counts_bookings_closing_in_month_not_extra_revenue(db_
 def test_financial_summary_deducts_fixed_costs_from_profit(db_session):
     _seed(db_session)
     summary = financial_summary(db_session, 2026, 8)
-    assert summary.fixed_costs.total == round(220.5 + 66.0 + 200.0, 2)
+    assert summary.fixed_costs.total == round(220.5 + 66.0 + 200.0 + 15.0, 2)
     assert summary.profit == round(summary.total_revenue - summary.total_costs, 2)
 
 

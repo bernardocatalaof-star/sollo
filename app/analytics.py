@@ -39,6 +39,17 @@ def bookings_closing_in_month(db: Session, year: int, month: int) -> list[Bookin
     )
 
 
+def bookings_starting_in_month(db: Session, year: int, month: int) -> list[Booking]:
+    start, end = _month_bounds(year, month)
+    return (
+        db.query(Booking)
+        .options(joinedload(Booking.cabin))
+        .filter(Booking.check_in >= start, Booking.check_in <= end)
+        .order_by(Booking.check_in)
+        .all()
+    )
+
+
 def _nights_in_month(db: Session, year: int, month: int) -> list[tuple[Booking, int]]:
     """Bookings overlapping the month, paired with how many of their nights fall
     inside it. A night "belongs" to the month its start date falls in, so the
@@ -114,13 +125,16 @@ class FixedCosts:
     landowner and supply costs. Website costs mirror a typical payment
     processor: a flat monthly fee plus a percentage + flat fee per transaction,
     charged on bookings synced from the Sheet (not manual Extra Revenue entries),
-    attributed to the same month as Revenue (checkout)."""
+    attributed to the same month as Revenue (checkout). Check-in supplies (e.g. a
+    polaroid handed to each guest) are charged per stay that CHECKS IN this
+    month instead -- that's when the item is actually given out."""
 
     website_fixed: float = 0.0
     website_percentage: float = 0.0
     website_per_transaction: float = 0.0
     tech_tools: float = 0.0
     accounting: float = 0.0
+    checkin_supplies: float = 0.0
 
     @property
     def website_total(self) -> float:
@@ -128,12 +142,13 @@ class FixedCosts:
 
     @property
     def total(self) -> float:
-        return round(self.website_total + self.tech_tools + self.accounting, 2)
+        return round(self.website_total + self.tech_tools + self.accounting + self.checkin_supplies, 2)
 
 
 def fixed_costs_for_month(db: Session, year: int, month: int) -> FixedCosts:
     closing_bookings = bookings_closing_in_month(db, year, month)
     net_paid_total = sum(b.total_price for b in closing_bookings)
+    starting_bookings = bookings_starting_in_month(db, year, month)
 
     return FixedCosts(
         website_fixed=settings.website_fixed_fee,
@@ -141,6 +156,7 @@ def fixed_costs_for_month(db: Session, year: int, month: int) -> FixedCosts:
         website_per_transaction=round(len(closing_bookings) * settings.website_per_transaction_fee, 2),
         tech_tools=settings.tech_tools_fee,
         accounting=settings.accounting_fee,
+        checkin_supplies=round(len(starting_bookings) * settings.checkin_supplies_fee, 2),
     )
 
 
