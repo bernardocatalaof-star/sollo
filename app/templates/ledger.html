@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Ledger — Sollo{% endblock %}
+{% block content %}
+<h1>Ledger</h1>
+<p class="muted">Manual entries not tied to a synced booking: costs (e.g. supplies) and extra income received outside the Sheet (e.g. bank transfers). Both feed into the Monthly Close-out and Dashboard.</p>
+
+<form class="inline" method="post" id="ledger-form" action="/expenses">
+  <select id="ledger-type" onchange="ledgerTypeChanged()">
+    <option value="expense">Expense</option>
+    <option value="revenue">Revenue</option>
+  </select>
+  <input type="month" name="month" required />
+  <select name="category" id="ledger-category"></select>
+  <input type="text" name="description" placeholder="Description" />
+  <input type="number" step="0.01" name="amount" placeholder="Amount (€)" required />
+  <button type="submit">Add entry</button>
+</form>
+
+<script>
+  const CATEGORY_OPTIONS = {
+    expense: [["supplies", "Supplies"], ["maintenance", "Maintenance"], ["other", "Other"]],
+    revenue: [["booking", "Booking"], ["gift_card", "Gift Card"]],
+  };
+  function ledgerTypeChanged() {
+    const type = document.getElementById("ledger-type").value;
+    document.getElementById("ledger-form").action = type === "expense" ? "/expenses" : "/extra-revenue";
+    const categorySelect = document.getElementById("ledger-category");
+    categorySelect.innerHTML = "";
+    for (const [value, label] of CATEGORY_OPTIONS[type]) {
+      const opt = document.createElement("option");
+      opt.value = value;
+      opt.textContent = label;
+      categorySelect.appendChild(opt);
+    }
+  }
+  ledgerTypeChanged();
+</script>
+
+<table>
+  <thead>
+    <tr><th>Month</th><th>Type</th><th>Category</th><th>Description</th><th>Amount</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for e in entries %}
+    <tr>
+      <td>{{ e.month.strftime("%Y-%m") }}</td>
+      <td>{% if e.kind == "revenue" %}<span class="badge good">Revenue</span>{% else %}<span class="badge">Expense</span>{% endif %}</td>
+      <td>{{ {"gift_card": "Gift Card", "booking": "Booking", "supplies": "Supplies", "maintenance": "Maintenance", "other": "Other"}.get(e.category, e.category) }}</td>
+      <td>{{ e.description }}</td>
+      <td class="{{ 'good' if e.kind == 'revenue' else 'bad' }}">{{ "+" if e.kind == "revenue" else "-" }}€{{ "%.2f"|format(e.amount) }}</td>
+      <td>
+        <form method="post" action="{{ '/extra-revenue' if e.kind == 'revenue' else '/expenses' }}/{{ e.id }}/delete" style="margin:0;">
+          <button type="submit" class="danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">No entries logged yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
