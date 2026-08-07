@@ -26,6 +26,7 @@ class Booking(Base):
     cabin: Mapped["Cabin"] = relationship(back_populates="bookings")
 
     guest_name: Mapped[str] = mapped_column(String(200), default="")
+    phone: Mapped[str] = mapped_column(String(60), default="")
     check_in: Mapped[date] = mapped_column(Date)
     check_out: Mapped[date] = mapped_column(Date)
     booked_at: Mapped[date | None] = mapped_column(Date, nullable=True)  # date the reservation was made

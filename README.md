@@ -119,6 +119,7 @@ COL_EXTERNAL_ID=reference
 COL_GUEST_NAME=
 COL_CUSTOMER_FIRST_NAME=customer_first_name
 COL_CUSTOMER_LAST_NAME=customer_last_name
+COL_CUSTOMER_PHONE=customer_mobile_number
 COL_CABIN=products
 COL_CHECK_IN=start_on
 COL_CHECK_OUT=end_on
@@ -133,6 +134,10 @@ BILLABLE_STATES=completed
 it only powers the Dashboard's "Sales this month" card. If your sheet doesn't have
 an equivalent column, leave the setting as-is; missing or unparseable values are
 just left blank rather than failing the sync.
+
+`COL_CUSTOMER_PHONE` is synced into each booking and shown (as a tappable `tel:`
+link) on that booking's detail page — reached by clicking a guest's name on the
+Calendar or Bookings page.
 
 If your sheet instead has one plain "Guest Name" column, set `COL_GUEST_NAME` to it
 and the first/last name columns are ignored. If there's no unique reservation ID

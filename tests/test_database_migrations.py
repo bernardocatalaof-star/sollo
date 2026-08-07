@@ -25,6 +25,7 @@ def test_run_schema_migrations_adds_missing_column_without_touching_existing_row
     inspector = inspect(engine)
     columns = {c["name"] for c in inspector.get_columns("bookings")}
     assert "booked_at" in columns
+    assert "phone" in columns
 
     with engine.connect() as conn:
         row = conn.execute(text("SELECT external_id, total_price FROM bookings WHERE id = 1")).first()

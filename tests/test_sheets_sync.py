@@ -83,6 +83,30 @@ def test_sync_stores_booked_at_from_sheet(db_session, monkeypatch):
     assert booking.booked_at == date(2026, 7, 15)
 
 
+def test_sync_stores_customer_phone_from_sheet(db_session, monkeypatch):
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", "data/sample_bookings.csv")
+
+    sync_bookings(db_session)
+
+    booking = db_session.query(Booking).filter(Booking.external_id == "R-1001").first()
+    assert booking.phone == "+351912345001"
+
+
+def test_sync_leaves_phone_blank_when_column_missing(db_session, monkeypatch, tmp_path):
+    csv_path = tmp_path / "bookings.csv"
+    header = "reference,state,customer_first_name,customer_last_name,products,start_on,end_on,net_paid\n"
+    row = "R-9,completed,Jane,Doe,Cabin 1,2026-08-01,2026-08-03,100.00\n"
+    csv_path.write_text(header + row)
+
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", str(csv_path))
+    sync_bookings(db_session)
+
+    booking = db_session.query(Booking).filter(Booking.external_id == "R-9").first()
+    assert booking.phone == ""
+
+
 def test_sync_leaves_booked_at_blank_when_column_missing_or_unparseable(db_session, monkeypatch, tmp_path):
     csv_path = tmp_path / "bookings.csv"
     header = "reference,state,customer_first_name,customer_last_name,products,start_on,end_on,net_paid\n"

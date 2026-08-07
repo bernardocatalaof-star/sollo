@@ -291,6 +291,7 @@ def sync_bookings(db: Session) -> SyncResult:
         values = dict(
             cabin_id=cabin.id,
             guest_name=_resolve_guest_name(row),
+            phone=str(row.get(settings.col_customer_phone, "")).strip(),
             check_in=check_in,
             check_out=check_out,
             booked_at=_parse_optional_date(row.get(settings.col_booked_at)),

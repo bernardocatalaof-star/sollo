@@ -53,6 +53,7 @@ def get_db():
 # migration framework for a single-developer app this size.
 _COLUMN_MIGRATIONS = [
     ("bookings", "booked_at", "DATE"),
+    ("bookings", "phone", "VARCHAR(60)"),
 ]
 
 
