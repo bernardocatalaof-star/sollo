@@ -88,6 +88,59 @@
   </div>
 </div>
 
+<h2>Cost breakdown — % of Revenue</h2>
+<p class="muted">Each month's Revenue as 100%, split into costs with whatever's left as profit. Costs come from the automatic landowner/fixed calculations plus Ledger Expense entries categorised Supplies, Maintenance, or Staff (an Expense filed as "Other" isn't included). Last 6 months.</p>
+<div class="bar-chart">
+  {% set cost_colors = {"Landowner": "#4f8cff", "Supplies": "#e8b339", "Maintenance": "#a97ff0", "Tech": "#3ac1c9", "Staff": "#f0955d"} %}
+  {% for m in cost_breakdown_months %}
+  <div class="bar-chart-col {{ 'current' if (m.year, m.month) == (year, month) else '' }}">
+    <div class="stack-chart-track">
+      {% if m.revenue > 0 %}
+        <div class="stack-chart-line" style="bottom: {{ (100 / cost_chart_max_scale * 100) }}%;"></div>
+        {% for share in m.shares %}
+          {% if share.pct > 0 %}
+          <div class="stack-chart-seg" style="height: {{ share.pct / cost_chart_max_scale * 100 }}%; background: {{ cost_colors[share.label] }};" title="{{ share.label }}: €{{ '%.2f'|format(share.amount) }} ({{ share.pct }}%)"></div>
+          {% endif %}
+        {% endfor %}
+        {% if m.profit > 0 %}
+        <div class="stack-chart-seg" style="height: {{ m.profit_pct / cost_chart_max_scale * 100 }}%; background: var(--good);" title="Profit: €{{ '%.2f'|format(m.profit) }} ({{ m.profit_pct }}%)"></div>
+        {% endif %}
+      {% endif %}
+    </div>
+    <div class="bar-chart-value {{ 'bad' if m.profit < 0 else 'good' }}">{{ "%.0f"|format(m.profit_pct) }}%</div>
+    <div class="bar-chart-label">{{ m.label }}</div>
+  </div>
+  {% endfor %}
+</div>
+<div class="chart-legend">
+  {% for label, color in cost_colors.items() %}
+  <span class="legend-item"><span class="legend-swatch" style="background: {{ color }};"></span>{{ label }}</span>
+  {% endfor %}
+  <span class="legend-item"><span class="legend-swatch" style="background: var(--good);"></span>Profit</span>
+</div>
+
+<h2>Occupancy by cabin</h2>
+<p class="muted">Last 3 months through the next 3.</p>
+<div class="bar-chart">
+  {% for m in cabin_occupancy_months %}
+  <div class="bar-chart-col {{ 'current' if (m.year, m.month) == (year, month) else '' }}">
+    <div class="occ-chart-track">
+      {% for c in m.cabins %}
+      <div class="occ-chart-bar" style="height: {{ (c.rate * 100)|round(0, 'floor') }}%; background: {{ c.color }};" title="{{ c.cabin_name }}: {{ '%.0f'|format(c.rate * 100) }}%"></div>
+      {% endfor %}
+    </div>
+    <div class="bar-chart-label">{{ m.label }}</div>
+  </div>
+  {% endfor %}
+</div>
+<div class="chart-legend">
+  {% if cabin_occupancy_months %}
+    {% for c in cabin_occupancy_months[0].cabins %}
+    <span class="legend-item"><span class="legend-swatch" style="background: {{ c.color }};"></span>{{ c.cabin_name }}</span>
+    {% endfor %}
+  {% endif %}
+</div>
+
 <script>
   function centerCurrentColumn(currentId, containerId) {
     requestAnimationFrame(() => {

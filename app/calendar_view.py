@@ -98,7 +98,7 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
                 # "checkout stub" here so the bar visibly reaches Monday instead of
                 # stopping dead at Sunday's edge.
                 if booking.check_out == week_start:
-                    segments.append((0, 0, 0, False, True, booking))
+                    segments.append((0, 0, 1, 2, booking))  # first half of Monday
                 continue
             start_col = (overlap_start - week_start).days
             end_col = start_col + span
@@ -107,26 +107,28 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
             # next, it runs edge-to-edge instead -- there's no "half day" to show.
             starts_at_checkin = overlap_start == booking.check_in
             ends_at_checkout = overlap_end == booking.check_out and end_col < 7
-            segments.append((start_col, span, end_col, starts_at_checkin, ends_at_checkout, booking))
-
-        # Greedy lane packing: place each bar in the first lane free at its start
-        # column, opening a new lane only when every existing one is still busy.
-        segments.sort(key=lambda s: (s[0], -s[1]))
-        lane_ends: list[int] = []
-        bars = []
-        for start_col, span, end_col, starts_at_checkin, ends_at_checkout, booking in segments:
-            lane = next((i for i, lane_end in enumerate(lane_ends) if start_col >= lane_end), None)
-            if lane is None:
-                lane = len(lane_ends)
-                lane_ends.append(end_col)
-            else:
-                lane_ends[lane] = end_col
-
             # 14 half-day columns per week (2 per day): a bar that truly starts/ends
             # on check-in/check-out begins or finishes at that day's midpoint;
             # otherwise it runs to the full edge of the column.
             grid_start = 2 * start_col + 2 if starts_at_checkin else 2 * start_col + 1
             grid_end = 2 * end_col + 2 if ends_at_checkout else 2 * end_col + 1
+            segments.append((start_col, span, grid_start, grid_end, booking))
+
+        # Greedy lane packing, done in the same half-day GRID units actually
+        # rendered (not whole-day units) -- two different bookings that both end
+        # their stay on the same day (e.g. a same-day turnover, or two check-outs
+        # landing on the same Monday stub) occupy the exact same half-day cell,
+        # which whole-day bookkeeping can't tell apart from merely "adjacent".
+        segments.sort(key=lambda s: (s[2], -s[3]))
+        lane_ends: list[int] = []
+        bars = []
+        for start_col, span, grid_start, grid_end, booking in segments:
+            lane = next((i for i, lane_end in enumerate(lane_ends) if grid_start >= lane_end), None)
+            if lane is None:
+                lane = len(lane_ends)
+                lane_ends.append(grid_end)
+            else:
+                lane_ends[lane] = grid_end
 
             bars.append(
                 Bar(

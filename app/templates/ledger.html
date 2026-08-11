@@ -18,7 +18,7 @@
 
 <script>
   const CATEGORY_OPTIONS = {
-    expense: [["supplies", "Supplies"], ["maintenance", "Maintenance"], ["other", "Other"]],
+    expense: [["supplies", "Supplies"], ["maintenance", "Maintenance"], ["staff", "Staff"], ["other", "Other"]],
     revenue: [["booking", "Booking"], ["gift_card", "Gift Card"]],
   };
   function ledgerTypeChanged() {
@@ -45,7 +45,7 @@
     <tr>
       <td>{{ e.month.strftime("%Y-%m") }}</td>
       <td>{% if e.kind == "revenue" %}<span class="badge good">Revenue</span>{% else %}<span class="badge">Expense</span>{% endif %}</td>
-      <td>{{ {"gift_card": "Gift Card", "booking": "Booking", "supplies": "Supplies", "maintenance": "Maintenance", "other": "Other"}.get(e.category, e.category) }}</td>
+      <td>{{ {"gift_card": "Gift Card", "booking": "Booking", "supplies": "Supplies", "maintenance": "Maintenance", "staff": "Staff", "other": "Other"}.get(e.category, e.category) }}</td>
       <td>{{ e.description }}</td>
       <td class="{{ 'good' if e.kind == 'revenue' else 'bad' }}">{{ "+" if e.kind == "revenue" else "-" }}€{{ "%.2f"|format(e.amount) }}</td>
       <td>

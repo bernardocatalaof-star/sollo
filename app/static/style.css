@@ -168,6 +168,64 @@ button.danger { background: var(--bad); }
 .profit-chart-fill.good-fill { background: var(--good); }
 .profit-chart-fill.bad { background: var(--bad); }
 
+/* 100%-of-Revenue stacked chart: segments stack bottom-up via column-reverse so
+   writing costs first then profit last in the HTML naturally puts profit on
+   top. flex-shrink:0 + overflow:visible let a loss month's segments (which sum
+   past 100%) rise above the container instead of being squashed to fit --
+   the "100%" line stays anchored at the true revenue mark either way. */
+.stack-chart-track {
+  position: relative;
+  width: 100%;
+  max-width: 64px;
+  height: 140px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow: visible;
+}
+
+.stack-chart-seg { width: 100%; flex-shrink: 0; }
+
+.stack-chart-line {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  height: 1px;
+  background: var(--text);
+  opacity: 0.5;
+  z-index: 2;
+}
+
+.occ-chart-track {
+  width: 100%;
+  max-width: 64px;
+  height: 140px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  padding: 0 3px;
+  overflow: hidden;
+}
+
+.occ-chart-bar { flex: 1; min-width: 0; border-radius: 3px 3px 0 0; }
+
+.chart-legend {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 1.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.legend-item { display: flex; align-items: center; gap: 0.4rem; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+
 .goal-bar {
   width: 100%;
   height: 28px;

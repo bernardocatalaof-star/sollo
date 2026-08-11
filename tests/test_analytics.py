@@ -1,9 +1,11 @@
 from datetime import date
 
 from app.analytics import (
+    cost_breakdown_by_month,
     financial_summary,
     fixed_costs_for_month,
     landowner_statement,
+    occupancy_by_cabin_and_month,
     profit_by_month,
     profit_year_to_date,
     revenue_by_month,
@@ -260,3 +262,74 @@ def test_profit_by_month_reflects_fixed_costs_even_on_a_slow_month(db_session):
     # confirms fixed costs are actually landing in the monthly figure, not just
     # in the standalone fixed_costs_for_month() helper.
     assert august.amount < 0
+
+
+def test_cost_breakdown_by_month_spans_six_months_ending_at_given_month(db_session):
+    months = cost_breakdown_by_month(db_session, 2026, 8, count=6)
+    assert [(m.year, m.month) for m in months] == [
+        (2026, 3), (2026, 4), (2026, 5), (2026, 6), (2026, 7), (2026, 8),
+    ]
+    assert months[-1].label == "Aug 2026"
+
+
+def test_cost_breakdown_by_month_shares_match_known_sources(db_session):
+    _seed(db_session)
+    august = next(m for m in cost_breakdown_by_month(db_session, 2026, 8) if (m.year, m.month) == (2026, 8))
+    by_label = {s.label: s for s in august.shares}
+
+    summary = financial_summary(db_session, 2026, 8)
+    assert by_label["Landowner"].amount == summary.total_landowner_costs
+    assert by_label["Tech"].amount == summary.fixed_costs.total
+    assert by_label["Supplies"].amount == 25.0  # the Expense added in _seed
+    assert by_label["Maintenance"].amount == 0.0
+    assert by_label["Staff"].amount == 0.0
+
+
+def test_cost_breakdown_by_month_shares_plus_profit_equals_revenue(db_session):
+    _seed(db_session)
+    for m in cost_breakdown_by_month(db_session, 2026, 8):
+        assert round(sum(s.amount for s in m.shares) + m.profit, 2) == round(m.revenue, 2)
+
+
+def test_cost_breakdown_excludes_expenses_filed_as_other(db_session):
+    _seed(db_session)
+    db_session.add(Expense(month=date(2026, 8, 1), category="other", description="misc", amount=999.0))
+    db_session.commit()
+
+    august = next(m for m in cost_breakdown_by_month(db_session, 2026, 8) if (m.year, m.month) == (2026, 8))
+    named_total = sum(s.amount for s in august.shares)
+
+    # An "Other"-categorised expense doesn't appear in any of the five named
+    # shares -- it's a documented gap, not a bug, but must not silently leak in.
+    assert named_total < 999.0
+
+
+def test_occupancy_by_cabin_and_month_spans_three_before_and_three_after(db_session):
+    _seed(db_session)
+    months = occupancy_by_cabin_and_month(db_session, 2026, 8, months_before=3, months_after=3)
+    assert [(m.year, m.month) for m in months] == [
+        (2026, 6), (2026, 7), (2026, 8), (2026, 9), (2026, 10), (2026, 11),
+    ]
+
+
+def test_occupancy_by_cabin_and_month_computes_rate_per_cabin(db_session):
+    cabin1, cabin2, _ = _seed(db_session)
+    months = occupancy_by_cabin_and_month(db_session, 2026, 8, months_before=1, months_after=0)
+    august = months[0]
+    rates = {c.cabin_name: c.rate for c in august.cabins}
+
+    # Cabin 1: R-1 (Aug1-4, 3 nights) + R-3's Aug30-31 portion (2 nights) = 5 / 31 days
+    assert round(rates["Cabin 1"], 4) == round(5 / 31, 4)
+    # Cabin 2: R-2 (Aug3-5, 2 nights) / 31 days
+    assert round(rates["Cabin 2"], 4) == round(2 / 31, 4)
+
+
+def test_occupancy_by_cabin_and_month_uses_the_same_colors_as_the_calendar(db_session):
+    from app.calendar_view import cabin_colors
+
+    _seed(db_session)  # Cabin 1 / Cabin 2 -- not named Olivia/Santiago, so palette-assigned
+    months = occupancy_by_cabin_and_month(db_session, 2026, 8, months_before=1, months_after=0)
+    expected_colors = cabin_colors(db_session)
+    for cabin_rate in months[0].cabins:
+        cabin = db_session.query(Cabin).filter(Cabin.name == cabin_rate.cabin_name).first()
+        assert cabin_rate.color == expected_colors[cabin.id]

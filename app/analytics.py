@@ -330,3 +330,124 @@ def profit_by_month(db: Session) -> list[MonthProfit]:
         results.append(MonthProfit(year=y, month=m, label=date(y, m, 1).strftime("%b %Y"), amount=profit))
         y, m = (y + 1, 1) if m == 12 else (y, m + 1)
     return results
+
+
+def _shift_month(year: int, month: int, delta: int) -> tuple[int, int]:
+    total = (year * 12 + (month - 1)) + delta
+    return total // 12, total % 12 + 1
+
+
+@dataclass
+class CostShare:
+    label: str
+    amount: float
+    pct: float  # percentage of that month's Revenue -- can push the stack past
+    # 100% in a loss month, since costs aren't capped to what Revenue can cover
+
+
+@dataclass
+class MonthCostBreakdown:
+    year: int
+    month: int
+    label: str
+    revenue: float
+    shares: list[CostShare]  # landowner, supplies, maintenance, tech, staff
+    profit: float  # revenue minus the shares above -- can be negative
+    profit_pct: float
+
+
+def cost_breakdown_by_month(db: Session, year: int, month: int, count: int = 6) -> list[MonthCostBreakdown]:
+    """Last `count` months (ending at year/month): each month's Revenue split into
+    named cost shares plus what's left as profit, for a 100%-of-Revenue stacked
+    chart. "Tech" bundles the always-on fixed costs (website, tech tools,
+    accounting, check-in supplies); "supplies"/"maintenance"/"staff" come from
+    Ledger Expense entries with those categories -- an Expense filed as "Other"
+    won't show up in this specific breakdown."""
+    results = []
+    for i in range(-(count - 1), 1):
+        y, m = _shift_month(year, month, i)
+        summary = financial_summary(db, y, m)
+        month_start, _ = _month_bounds(y, m)
+
+        def _category_total(category: str) -> float:
+            return round(
+                sum(
+                    e.amount
+                    for e in db.query(Expense)
+                    .filter(Expense.month == month_start, Expense.category == category)
+                    .all()
+                ),
+                2,
+            )
+
+        revenue = summary.total_revenue
+        amounts = {
+            "Landowner": summary.total_landowner_costs,
+            "Supplies": _category_total("supplies"),
+            "Maintenance": _category_total("maintenance"),
+            "Tech": summary.fixed_costs.total,
+            "Staff": _category_total("staff"),
+        }
+
+        def _pct(amount: float) -> float:
+            return round(amount / revenue * 100, 1) if revenue else 0.0
+
+        shares = [CostShare(label=label, amount=amount, pct=_pct(amount)) for label, amount in amounts.items()]
+        profit = round(revenue - sum(amounts.values()), 2)
+
+        results.append(
+            MonthCostBreakdown(
+                year=y, month=m, label=date(y, m, 1).strftime("%b %Y"),
+                revenue=revenue, shares=shares, profit=profit, profit_pct=_pct(profit),
+            )
+        )
+    return results
+
+
+@dataclass
+class CabinRate:
+    cabin_name: str
+    color: str
+    rate: float
+
+
+@dataclass
+class MonthCabinOccupancy:
+    year: int
+    month: int
+    label: str
+    cabins: list[CabinRate]
+
+
+def occupancy_by_cabin_and_month(
+    db: Session, year: int, month: int, months_before: int = 3, months_after: int = 3
+) -> list[MonthCabinOccupancy]:
+    """Per-cabin occupancy rate for the `months_before` months up to and
+    including year/month, plus the `months_after` months following it."""
+    from app.calendar_view import cabin_colors
+
+    colors = cabin_colors(db)
+    cabins = db.query(Cabin).order_by(Cabin.name).all()
+
+    results = []
+    for i in range(-(months_before - 1), months_after + 1):
+        y, m = _shift_month(year, month, i)
+        days_in_month = calendar.monthrange(y, m)[1]
+
+        nights_by_cabin = {cabin.id: 0 for cabin in cabins}
+        for booking, nights in _nights_in_month(db, y, m):
+            if booking.cabin_id in nights_by_cabin:
+                nights_by_cabin[booking.cabin_id] += nights
+
+        cabin_rates = [
+            CabinRate(
+                cabin_name=cabin.name,
+                color=colors.get(cabin.id, "#8b90a0"),
+                rate=(nights_by_cabin[cabin.id] / days_in_month) if days_in_month else 0.0,
+            )
+            for cabin in cabins
+        ]
+        results.append(
+            MonthCabinOccupancy(year=y, month=m, label=date(y, m, 1).strftime("%b %Y"), cabins=cabin_rates)
+        )
+    return results

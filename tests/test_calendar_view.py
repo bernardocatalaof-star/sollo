@@ -101,6 +101,33 @@ def test_month_grid_weekend_stay_checking_out_monday_shows_a_stub_on_monday(db_s
     assert monday_stub.grid_end == 2
 
 
+def test_month_grid_separates_two_same_day_checkout_stubs_into_different_lanes(db_session):
+    olivia = Cabin(name="Olivia")
+    santiago = Cabin(name="Santiago")
+    db_session.add_all([olivia, santiago])
+    db_session.flush()
+    # Both stays check out on the same Monday (start of a new week row) -- their
+    # "checkout stub" segments land at the exact same half-day grid cell and must
+    # not be drawn on top of each other.
+    db_session.add_all(
+        [
+            Booking(external_id="R-5", cabin=olivia, guest_name="Olivia Guest",
+                    check_in=date(2026, 8, 7), check_out=date(2026, 8, 10), total_price=100),
+            Booking(external_id="R-6", cabin=santiago, guest_name="Santiago Guest",
+                    check_in=date(2026, 8, 8), check_out=date(2026, 8, 10), total_price=100),
+        ]
+    )
+    db_session.commit()
+
+    grid = month_grid(db_session, 2026, 8)
+    stubs = [
+        b for b in _all_bars(grid)
+        if b.booking.guest_name in ("Olivia Guest", "Santiago Guest") and b.grid_start == 1 and b.grid_end == 2
+    ]
+    assert len(stubs) == 2
+    assert stubs[0].lane != stubs[1].lane
+
+
 def test_month_grid_splits_bar_at_week_boundary(db_session):
     olivia = Cabin(name="Olivia")
     db_session.add(olivia)

@@ -26,8 +26,10 @@ summary.
   by land fee vs. cleaning fee, per cabin) plus revenue, total costs, occupancy rate,
   and profit for the month.
 - **Dashboard** — Revenue (checkout-based), Sales this month (bookings actually
-  *made* this month, regardless of when they check in/out), and an occupancy
-  forecast for the next 3 months.
+  *made* this month, regardless of when they check in/out), Profit year-to-date
+  against a target, Revenue/Profit by month (scrollable, spans all activity),
+  a 100%-of-Revenue cost breakdown (last 6 months), and per-cabin occupancy
+  (last 3 months through the next 3).
 
 ## Setup
 

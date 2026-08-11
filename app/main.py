@@ -6,8 +6,10 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.analytics import (
+    cost_breakdown_by_month,
     financial_summary,
     landowner_statement,
+    occupancy_by_cabin_and_month,
     profit_by_month,
     profit_year_to_date,
     revenue_by_month,
@@ -43,6 +45,11 @@ def dashboard(request: Request):
         summary = financial_summary(db, today.year, today.month)
         revenue_months = revenue_by_month(db)
         profit_months = profit_by_month(db)
+        cost_breakdown_months = cost_breakdown_by_month(db, today.year, today.month)
+        cost_chart_max_scale = max(
+            [100.0] + [sum(s.pct for s in m.shares) for m in cost_breakdown_months]
+        )
+        cabin_occupancy_months = occupancy_by_cabin_and_month(db, today.year, today.month)
         sales = sales_in_month(db, today.year, today.month)
         profit_ytd = profit_year_to_date(db, today.year, today.month)
         target = settings.annual_profit_target
@@ -60,6 +67,9 @@ def dashboard(request: Request):
             "summary": summary,
             "revenue_months": revenue_months,
             "profit_months": profit_months,
+            "cost_breakdown_months": cost_breakdown_months,
+            "cost_chart_max_scale": cost_chart_max_scale,
+            "cabin_occupancy_months": cabin_occupancy_months,
             "sales": sales,
             "profit_ytd": profit_ytd,
             "profit_ytd_pct": profit_ytd_pct,
