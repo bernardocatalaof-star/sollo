@@ -66,3 +66,21 @@ def run_schema_migrations(engine: Engine) -> None:
         if column not in existing:
             with engine.begin() as conn:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+
+
+def run_data_fixes(engine: Engine) -> None:
+    """One-off data corrections. Each fix must be idempotent (safe to run on
+    every startup) since there's no "already ran" tracking -- once applied, the
+    WHERE clause simply matches nothing on subsequent runs."""
+    inspector = inspect(engine)
+    if "expenses" not in inspector.get_table_names():
+        return
+    with engine.begin() as conn:
+        # Madalena's cost was originally logged under "Other" before the
+        # dedicated "Staff" category existed.
+        conn.execute(
+            text(
+                "UPDATE expenses SET category = 'staff' "
+                "WHERE category = 'other' AND lower(description) LIKE '%madalena%'"
+            )
+        )

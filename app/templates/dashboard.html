@@ -89,9 +89,9 @@
 </div>
 
 <h2>Cost breakdown — % of Revenue</h2>
-<p class="muted">Each month's Revenue as 100%, split into costs with whatever's left as profit. Costs come from the automatic landowner/fixed calculations plus Ledger Expense entries categorised Supplies, Maintenance, or Staff (an Expense filed as "Other" isn't included). Last 6 months.</p>
+<p class="muted">Each month's Revenue as 100%, split into Tech (website, tech tools, accounting, check-in supplies) and Staff (Ledger Expense entries categorised Staff), with whatever's left as profit. Landowner/Supplies/Maintenance/Other costs still reduce the real Profit shown elsewhere — they're just not their own share here. Last 6 months.</p>
 <div class="bar-chart">
-  {% set cost_colors = {"Landowner": "#4f8cff", "Supplies": "#e8b339", "Maintenance": "#a97ff0", "Tech": "#3ac1c9", "Staff": "#f0955d"} %}
+  {% set cost_colors = {"Tech": "#3ac1c9", "Staff": "#f0955d"} %}
   {% for m in cost_breakdown_months %}
   <div class="bar-chart-col {{ 'current' if (m.year, m.month) == (year, month) else '' }}">
     <div class="stack-chart-track">

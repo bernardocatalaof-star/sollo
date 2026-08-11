@@ -351,42 +351,39 @@ class MonthCostBreakdown:
     month: int
     label: str
     revenue: float
-    shares: list[CostShare]  # landowner, supplies, maintenance, tech, staff
+    shares: list[CostShare]  # tech, staff
     profit: float  # revenue minus the shares above -- can be negative
     profit_pct: float
 
 
 def cost_breakdown_by_month(db: Session, year: int, month: int, count: int = 6) -> list[MonthCostBreakdown]:
     """Last `count` months (ending at year/month): each month's Revenue split into
-    named cost shares plus what's left as profit, for a 100%-of-Revenue stacked
-    chart. "Tech" bundles the always-on fixed costs (website, tech tools,
-    accounting, check-in supplies); "supplies"/"maintenance"/"staff" come from
-    Ledger Expense entries with those categories -- an Expense filed as "Other"
-    won't show up in this specific breakdown."""
+    Tech and Staff cost shares plus what's left as profit, for a 100%-of-Revenue
+    stacked chart. "Tech" bundles the always-on fixed costs (website, tech tools,
+    accounting, check-in supplies); "Staff" comes from Ledger Expense entries
+    categorised Staff. Landowner/Supplies/Maintenance costs still reduce the real
+    Profit shown elsewhere (Dashboard, Monthly) -- they're just not broken out as
+    their own share in this specific chart."""
     results = []
     for i in range(-(count - 1), 1):
         y, m = _shift_month(year, month, i)
         summary = financial_summary(db, y, m)
         month_start, _ = _month_bounds(y, m)
 
-        def _category_total(category: str) -> float:
-            return round(
-                sum(
-                    e.amount
-                    for e in db.query(Expense)
-                    .filter(Expense.month == month_start, Expense.category == category)
-                    .all()
-                ),
-                2,
-            )
+        staff_total = round(
+            sum(
+                e.amount
+                for e in db.query(Expense)
+                .filter(Expense.month == month_start, Expense.category == "staff")
+                .all()
+            ),
+            2,
+        )
 
         revenue = summary.total_revenue
         amounts = {
-            "Landowner": summary.total_landowner_costs,
-            "Supplies": _category_total("supplies"),
-            "Maintenance": _category_total("maintenance"),
             "Tech": summary.fixed_costs.total,
-            "Staff": _category_total("staff"),
+            "Staff": staff_total,
         }
 
         def _pct(amount: float) -> float:

@@ -274,15 +274,16 @@ def test_cost_breakdown_by_month_spans_six_months_ending_at_given_month(db_sessi
 
 def test_cost_breakdown_by_month_shares_match_known_sources(db_session):
     _seed(db_session)
+    db_session.add(Expense(month=date(2026, 8, 1), category="staff", description="Madalena", amount=200.0))
+    db_session.commit()
+
     august = next(m for m in cost_breakdown_by_month(db_session, 2026, 8) if (m.year, m.month) == (2026, 8))
     by_label = {s.label: s for s in august.shares}
 
     summary = financial_summary(db_session, 2026, 8)
-    assert by_label["Landowner"].amount == summary.total_landowner_costs
+    assert by_label.keys() == {"Tech", "Staff"}
     assert by_label["Tech"].amount == summary.fixed_costs.total
-    assert by_label["Supplies"].amount == 25.0  # the Expense added in _seed
-    assert by_label["Maintenance"].amount == 0.0
-    assert by_label["Staff"].amount == 0.0
+    assert by_label["Staff"].amount == 200.0
 
 
 def test_cost_breakdown_by_month_shares_plus_profit_equals_revenue(db_session):
@@ -291,17 +292,21 @@ def test_cost_breakdown_by_month_shares_plus_profit_equals_revenue(db_session):
         assert round(sum(s.amount for s in m.shares) + m.profit, 2) == round(m.revenue, 2)
 
 
-def test_cost_breakdown_excludes_expenses_filed_as_other(db_session):
-    _seed(db_session)
+def test_cost_breakdown_excludes_landowner_supplies_maintenance_and_other(db_session):
+    _seed(db_session)  # includes a "supplies" Expense and real landowner costs
+    db_session.add(Expense(month=date(2026, 8, 1), category="maintenance", description="AC", amount=150.0))
     db_session.add(Expense(month=date(2026, 8, 1), category="other", description="misc", amount=999.0))
     db_session.commit()
 
     august = next(m for m in cost_breakdown_by_month(db_session, 2026, 8) if (m.year, m.month) == (2026, 8))
-    named_total = sum(s.amount for s in august.shares)
+    summary = financial_summary(db_session, 2026, 8)
 
-    # An "Other"-categorised expense doesn't appear in any of the five named
-    # shares -- it's a documented gap, not a bug, but must not silently leak in.
-    assert named_total < 999.0
+    # Only Tech + Staff are broken out; landowner/supplies/maintenance/other all
+    # land in "profit" for this chart even though they reduce the real Profit
+    # shown on the Dashboard/Monthly pages.
+    assert {s.label for s in august.shares} == {"Tech", "Staff"}
+    assert summary.total_landowner_costs > 0
+    assert august.profit != summary.profit
 
 
 def test_occupancy_by_cabin_and_month_spans_three_before_and_three_after(db_session):

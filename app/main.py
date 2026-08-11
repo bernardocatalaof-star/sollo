@@ -16,12 +16,13 @@ from app.analytics import (
     sales_in_month,
 )
 from app.config import settings
-from app.database import Base, SessionLocal, engine, run_schema_migrations
+from app.database import Base, SessionLocal, engine, run_data_fixes, run_schema_migrations
 from app.routers import auth, bookings, calendar, expenses, extra_revenue, ledger, monthly
 from app.sheets_sync import oauth_is_connected
 
 Base.metadata.create_all(bind=engine)
 run_schema_migrations(engine)
+run_data_fixes(engine)
 
 app = FastAPI(title="Sollo — Guest & Operations Management")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
