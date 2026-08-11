@@ -273,40 +273,55 @@ def test_cost_breakdown_by_month_spans_six_months_ending_at_given_month(db_sessi
 
 
 def test_cost_breakdown_by_month_shares_match_known_sources(db_session):
-    _seed(db_session)
+    _seed(db_session)  # includes a "supplies" Expense of 25.0 and real landowner costs
     db_session.add(Expense(month=date(2026, 8, 1), category="staff", description="Madalena", amount=200.0))
+    db_session.add(Expense(month=date(2026, 8, 1), category="maintenance", description="AC", amount=150.0))
     db_session.commit()
 
     august = next(m for m in cost_breakdown_by_month(db_session, 2026, 8) if (m.year, m.month) == (2026, 8))
     by_label = {s.label: s for s in august.shares}
 
     summary = financial_summary(db_session, 2026, 8)
-    assert by_label.keys() == {"Tech", "Staff"}
+    assert by_label.keys() == {"Landowner", "Tech", "Supplies", "Staff", "Maintenance"}
+    assert by_label["Landowner"].amount == summary.total_landowner_costs
     assert by_label["Tech"].amount == summary.fixed_costs.total
+    assert by_label["Supplies"].amount == 25.0
     assert by_label["Staff"].amount == 200.0
+    assert by_label["Maintenance"].amount == 150.0
 
 
 def test_cost_breakdown_by_month_shares_plus_profit_equals_revenue(db_session):
     _seed(db_session)
+    db_session.add(Expense(month=date(2026, 8, 1), category="other", description="misc", amount=999.0))
+    db_session.commit()
     for m in cost_breakdown_by_month(db_session, 2026, 8):
         assert round(sum(s.amount for s in m.shares) + m.profit, 2) == round(m.revenue, 2)
 
 
-def test_cost_breakdown_excludes_landowner_supplies_maintenance_and_other(db_session):
-    _seed(db_session)  # includes a "supplies" Expense and real landowner costs
-    db_session.add(Expense(month=date(2026, 8, 1), category="maintenance", description="AC", amount=150.0))
+def test_cost_breakdown_profit_always_matches_real_financial_summary_profit(db_session):
+    _seed(db_session)
     db_session.add(Expense(month=date(2026, 8, 1), category="other", description="misc", amount=999.0))
+    db_session.add(Expense(month=date(2026, 8, 1), category="custom_bucket", description="x", amount=40.0))
     db_session.commit()
 
     august = next(m for m in cost_breakdown_by_month(db_session, 2026, 8) if (m.year, m.month) == (2026, 8))
     summary = financial_summary(db_session, 2026, 8)
 
-    # Only Tech + Staff are broken out; landowner/supplies/maintenance/other all
-    # land in "profit" for this chart even though they reduce the real Profit
-    # shown on the Dashboard/Monthly pages.
-    assert {s.label for s in august.shares} == {"Tech", "Staff"}
-    assert summary.total_landowner_costs > 0
-    assert august.profit != summary.profit
+    # Every Expense category (including "Other" and an ad-hoc custom one) is
+    # broken out as its own share, so nothing is hidden -- the chart's profit
+    # is exactly the same figure shown on the Dashboard/Monthly pages.
+    assert {"Landowner", "Tech", "Supplies", "Other", "Custom_Bucket"} <= {s.label for s in august.shares}
+    assert august.profit == summary.profit
+
+
+def test_cost_breakdown_assigns_a_color_to_every_share_including_unknown_categories(db_session):
+    _seed(db_session)
+    db_session.add(Expense(month=date(2026, 8, 1), category="weird_new_category", description="x", amount=10.0))
+    db_session.commit()
+
+    august = next(m for m in cost_breakdown_by_month(db_session, 2026, 8) if (m.year, m.month) == (2026, 8))
+    for share in august.shares:
+        assert share.color
 
 
 def test_occupancy_by_cabin_and_month_spans_three_before_and_three_after(db_session):

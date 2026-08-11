@@ -88,10 +88,9 @@
   </div>
 </div>
 
-<h2>Cost breakdown — % of Revenue</h2>
-<p class="muted">Each month's Revenue as 100%, split into Tech (website, tech tools, accounting, check-in supplies) and Staff (Ledger Expense entries categorised Staff), with whatever's left as profit. Landowner/Supplies/Maintenance/Other costs still reduce the real Profit shown elsewhere — they're just not their own share here. Last 6 months.</p>
+<h2>Revenue breakdown — % of Revenue</h2>
+<p class="muted">Each month's Revenue as 100%, split into every cost that reduces Profit (Landowner and Tech from the automatic calculations, plus whatever Ledger Expense categories have entries that month — Supplies, Maintenance, Staff, Other, ...), with what's left as Profit. Always adds up to exactly 100%. Last 6 months.</p>
 <div class="bar-chart">
-  {% set cost_colors = {"Tech": "#3ac1c9", "Staff": "#f0955d"} %}
   {% for m in cost_breakdown_months %}
   <div class="bar-chart-col {{ 'current' if (m.year, m.month) == (year, month) else '' }}">
     <div class="stack-chart-track">
@@ -99,7 +98,7 @@
         <div class="stack-chart-line" style="bottom: {{ (100 / cost_chart_max_scale * 100) }}%;"></div>
         {% for share in m.shares %}
           {% if share.pct > 0 %}
-          <div class="stack-chart-seg" style="height: {{ share.pct / cost_chart_max_scale * 100 }}%; background: {{ cost_colors[share.label] }};" title="{{ share.label }}: €{{ '%.2f'|format(share.amount) }} ({{ share.pct }}%)"></div>
+          <div class="stack-chart-seg" style="height: {{ share.pct / cost_chart_max_scale * 100 }}%; background: {{ share.color }};" title="{{ share.label }}: €{{ '%.2f'|format(share.amount) }} ({{ share.pct }}%)"></div>
           {% endif %}
         {% endfor %}
         {% if m.profit > 0 %}
@@ -113,8 +112,14 @@
   {% endfor %}
 </div>
 <div class="chart-legend">
-  {% for label, color in cost_colors.items() %}
-  <span class="legend-item"><span class="legend-swatch" style="background: {{ color }};"></span>{{ label }}</span>
+  {% set seen = [] %}
+  {% for m in cost_breakdown_months %}
+    {% for share in m.shares %}
+      {% if share.label not in seen %}
+        {% set _ = seen.append(share.label) %}
+        <span class="legend-item"><span class="legend-swatch" style="background: {{ share.color }};"></span>{{ share.label }}</span>
+      {% endif %}
+    {% endfor %}
   {% endfor %}
   <span class="legend-item"><span class="legend-swatch" style="background: var(--good);"></span>Profit</span>
 </div>

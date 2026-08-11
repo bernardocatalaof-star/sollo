@@ -337,10 +337,22 @@ def _shift_month(year: int, month: int, delta: int) -> tuple[int, int]:
     return total // 12, total % 12 + 1
 
 
+_COST_SHARE_COLORS = {
+    "Landowner": "#4f8cff",
+    "Tech": "#3ac1c9",
+    "Supplies": "#e8b339",
+    "Maintenance": "#a97ff0",
+    "Staff": "#f0955d",
+    "Other": "#8d99ae",
+}
+_COST_SHARE_FALLBACK_PALETTE = ["#3ecf8e", "#c774e8", "#6ad1e3", "#ef5a5a"]
+
+
 @dataclass
 class CostShare:
     label: str
     amount: float
+    color: str
     pct: float  # percentage of that month's Revenue -- can push the stack past
     # 100% in a loss month, since costs aren't capped to what Revenue can cover
 
@@ -351,46 +363,58 @@ class MonthCostBreakdown:
     month: int
     label: str
     revenue: float
-    shares: list[CostShare]  # tech, staff
-    profit: float  # revenue minus the shares above -- can be negative
+    shares: list[CostShare]  # every cost category that reduces Profit
+    profit: float  # revenue minus the shares above -- always exact, can be negative
     profit_pct: float
 
 
 def cost_breakdown_by_month(db: Session, year: int, month: int, count: int = 6) -> list[MonthCostBreakdown]:
     """Last `count` months (ending at year/month): each month's Revenue split into
-    Tech and Staff cost shares plus what's left as profit, for a 100%-of-Revenue
-    stacked chart. "Tech" bundles the always-on fixed costs (website, tech tools,
-    accounting, check-in supplies); "Staff" comes from Ledger Expense entries
-    categorised Staff. Landowner/Supplies/Maintenance costs still reduce the real
-    Profit shown elsewhere (Dashboard, Monthly) -- they're just not broken out as
-    their own share in this specific chart."""
+    every cost category that reduces Profit, plus Profit itself, as percentages
+    that always add up to exactly 100% -- Landowner and Tech (the always-on fixed
+    costs: website, tech tools, accounting, check-in supplies) come from the
+    automatic calculations; every OTHER category is whatever Ledger Expense
+    categories actually have entries that month (Supplies, Maintenance, Staff,
+    Other, or any custom category), so nothing is silently left out."""
+    fallback_idx = 0
+    fallback_colors: dict[str, str] = {}
+
+    def _color_for(label: str) -> str:
+        nonlocal fallback_idx
+        if label in _COST_SHARE_COLORS:
+            return _COST_SHARE_COLORS[label]
+        if label not in fallback_colors:
+            fallback_colors[label] = _COST_SHARE_FALLBACK_PALETTE[fallback_idx % len(_COST_SHARE_FALLBACK_PALETTE)]
+            fallback_idx += 1
+        return fallback_colors[label]
+
     results = []
     for i in range(-(count - 1), 1):
         y, m = _shift_month(year, month, i)
         summary = financial_summary(db, y, m)
         month_start, _ = _month_bounds(y, m)
-
-        staff_total = round(
-            sum(
-                e.amount
-                for e in db.query(Expense)
-                .filter(Expense.month == month_start, Expense.category == "staff")
-                .all()
-            ),
-            2,
-        )
-
         revenue = summary.total_revenue
-        amounts = {
-            "Tech": summary.fixed_costs.total,
-            "Staff": staff_total,
-        }
+
+        category_totals: dict[str, float] = {}
+        for expense in db.query(Expense).filter(Expense.month == month_start).all():
+            label = expense.category.title()
+            category_totals[label] = category_totals.get(label, 0.0) + expense.amount
+
+        amounts = {"Landowner": summary.total_landowner_costs, "Tech": summary.fixed_costs.total}
+        for label, total in sorted(category_totals.items()):
+            amounts[label] = round(total, 2)
 
         def _pct(amount: float) -> float:
             return round(amount / revenue * 100, 1) if revenue else 0.0
 
-        shares = [CostShare(label=label, amount=amount, pct=_pct(amount)) for label, amount in amounts.items()]
-        profit = round(revenue - sum(amounts.values()), 2)
+        shares = [
+            CostShare(label=label, amount=amount, color=_color_for(label), pct=_pct(amount))
+            for label, amount in amounts.items()
+        ]
+        # By construction (landowner + every Expense category + fixed costs are
+        # exactly the terms financial_summary() subtracts from Revenue), this
+        # always equals the real Profit shown elsewhere -- not a separate figure.
+        profit = summary.profit
 
         results.append(
             MonthCostBreakdown(
