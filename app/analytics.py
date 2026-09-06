@@ -12,7 +12,7 @@ Attribution rules:
 
 import calendar
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -117,6 +117,66 @@ def landowner_statement(db: Session, year: int, month: int) -> LandownerStatemen
         entry.cleaning_total = round(entry.cleaning_total + fees.cleaning_fee, 2)
 
     return LandownerStatement(year=year, month=month, by_cabin=sorted(by_cabin.values(), key=lambda c: c.cabin_name))
+
+
+@dataclass
+class CleaningEntry:
+    date: date
+    guest_name: str
+    amount: float
+
+
+@dataclass
+class NightEntry:
+    date: date
+    guest_name: str
+
+
+@dataclass
+class CabinJustification:
+    cabin_name: str
+    cleanings: list[CleaningEntry] = field(default_factory=list)
+    nights: list[NightEntry] = field(default_factory=list)
+
+
+@dataclass
+class LandownerJustification:
+    year: int
+    month: int
+    by_cabin: list[CabinJustification] = field(default_factory=list)
+
+
+def landowner_justification(db: Session, year: int, month: int) -> LandownerJustification:
+    """Day-by-day backup for the landowner statement: every individual cleaning
+    date and every individual night-slept date this month, per cabin -- so a
+    specific charge can be pointed at a specific guest/date if questioned."""
+    by_cabin: dict[str, CabinJustification] = {}
+
+    for booking, nights_in_month in _nights_in_month(db, year, month):
+        entry = by_cabin.setdefault(booking.cabin.name, CabinJustification(cabin_name=booking.cabin.name))
+        month_start, _ = _month_bounds(year, month)
+        next_month_start = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+        overlap_start = max(booking.check_in, month_start)
+        overlap_end = min(booking.check_out, next_month_start)
+        d = overlap_start
+        while d < overlap_end:
+            entry.nights.append(NightEntry(date=d, guest_name=booking.guest_name))
+            d += timedelta(days=1)
+
+    for booking in bookings_closing_in_month(db, year, month):
+        fees = calculate_booking_fees(booking)
+        entry = by_cabin.setdefault(booking.cabin.name, CabinJustification(cabin_name=booking.cabin.name))
+        entry.cleanings.append(
+            CleaningEntry(date=booking.check_out, guest_name=booking.guest_name, amount=fees.cleaning_fee)
+        )
+
+    for entry in by_cabin.values():
+        entry.nights.sort(key=lambda n: n.date)
+        entry.cleanings.sort(key=lambda c: c.date)
+
+    return LandownerJustification(
+        year=year, month=month, by_cabin=sorted(by_cabin.values(), key=lambda c: c.cabin_name)
+    )
 
 
 @dataclass

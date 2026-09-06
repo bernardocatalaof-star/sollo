@@ -4,6 +4,7 @@ from app.analytics import (
     cost_breakdown_by_month,
     financial_summary,
     fixed_costs_for_month,
+    landowner_justification,
     landowner_statement,
     occupancy_by_cabin_and_month,
     profit_by_month,
@@ -353,3 +354,41 @@ def test_occupancy_by_cabin_and_month_uses_the_same_colors_as_the_calendar(db_se
     for cabin_rate in months[0].cabins:
         cabin = db_session.query(Cabin).filter(Cabin.name == cabin_rate.cabin_name).first()
         assert cabin_rate.color == expected_colors[cabin.id]
+
+
+def test_landowner_justification_lists_every_individual_night_and_cleaning_date(db_session):
+    _seed(db_session)
+    august = landowner_justification(db_session, 2026, 8)
+    by_cabin = {c.cabin_name: c for c in august.by_cabin}
+
+    # Cabin 1: R-1 (Aug1-4, guest A) contributes nights Aug1-3, plus R-3's
+    # Aug30-31 portion (guest C) -- 5 individual night dates, sorted.
+    cabin1_nights = [(n.date, n.guest_name) for n in by_cabin["Cabin 1"].nights]
+    assert cabin1_nights == [
+        (date(2026, 8, 1), "A"), (date(2026, 8, 2), "A"), (date(2026, 8, 3), "A"),
+        (date(2026, 8, 30), "C"), (date(2026, 8, 31), "C"),
+    ]
+    # Only R-1 checks out in August for Cabin 1 -- R-3 checks out in September.
+    assert [(c.date, c.guest_name) for c in by_cabin["Cabin 1"].cleanings] == [(date(2026, 8, 4), "A")]
+
+    # Cabin 2: R-2 (Aug3-5, guest B) -- 2 nights, 1 cleaning.
+    cabin2_nights = [(n.date, n.guest_name) for n in by_cabin["Cabin 2"].nights]
+    assert cabin2_nights == [(date(2026, 8, 3), "B"), (date(2026, 8, 4), "B")]
+    assert [(c.date, c.guest_name) for c in by_cabin["Cabin 2"].cleanings] == [(date(2026, 8, 5), "B")]
+
+
+def test_landowner_justification_september_only_has_the_cross_month_stay(db_session):
+    _seed(db_session)
+    september = landowner_justification(db_session, 2026, 9)
+    by_cabin = {c.cabin_name: c for c in september.by_cabin}
+
+    assert "Cabin 2" not in by_cabin  # no September activity at all for Cabin 2
+    assert [(n.date, n.guest_name) for n in by_cabin["Cabin 1"].nights] == [(date(2026, 9, 1), "C")]
+    assert [(c.date, c.guest_name) for c in by_cabin["Cabin 1"].cleanings] == [(date(2026, 9, 2), "C")]
+
+
+def test_landowner_justification_cleaning_amount_matches_fee_calculation(db_session):
+    _seed(db_session)
+    august = landowner_justification(db_session, 2026, 8)
+    cabin1 = next(c for c in august.by_cabin if c.cabin_name == "Cabin 1")
+    assert cabin1.cleanings[0].amount in (33.0, 40.0)  # standard or PT-holiday rate

@@ -24,7 +24,10 @@ summary.
   received outside the Sheet (e.g. a bank transfer for a gift card).
 - **Monthly close-out** (`/monthly`) — landowner statement (what you owe them, split
   by land fee vs. cleaning fee, per cabin) plus revenue, total costs, occupancy rate,
-  and profit for the month.
+  and profit for the month. Includes a "Landowner justification" section listing
+  every individual cleaning date and night-slept date per cabin, to back up the
+  statement if the landowner questions it — with the same prev/next month
+  navigation as the rest of the page.
 - **Dashboard** — Revenue (checkout-based), Sales this month (bookings actually
   *made* this month, regardless of when they check in/out), Profit year-to-date
   against a target, Revenue/Profit by month (scrollable, spans all activity),

@@ -4,7 +4,7 @@ from app.models import Booking, Cabin
 from app.routers.bookings import query_bookings
 
 
-def _make_booking(db, external_id, check_in, check_out):
+def _make_booking(db, external_id, check_in, check_out, booked_at=None):
     cabin = db.query(Cabin).filter(Cabin.name == "Cabin 1").first()
     if cabin is None:
         cabin = Cabin(name="Cabin 1")
@@ -16,6 +16,7 @@ def _make_booking(db, external_id, check_in, check_out):
         guest_name="Guest",
         check_in=check_in,
         check_out=check_out,
+        booked_at=booked_at,
         total_price=100.0,
         status="completed",
     )
@@ -42,6 +43,17 @@ def test_query_bookings_sorts_by_check_out_ascending(db_session):
     bookings, sort, order = query_bookings(db_session, sort="check_out", order="asc")
 
     assert sort == "check_out"
+    assert order == "asc"
+    assert [b.external_id for b in bookings] == ["B", "A"]
+
+
+def test_query_bookings_sorts_by_booked_at(db_session):
+    _make_booking(db_session, "A", date(2026, 8, 1), date(2026, 8, 3), booked_at=date(2026, 7, 20))
+    _make_booking(db_session, "B", date(2026, 8, 10), date(2026, 8, 12), booked_at=date(2026, 7, 5))
+
+    bookings, sort, order = query_bookings(db_session, sort="booked_at", order="asc")
+
+    assert sort == "booked_at"
     assert order == "asc"
     assert [b.external_id for b in bookings] == ["B", "A"]
 

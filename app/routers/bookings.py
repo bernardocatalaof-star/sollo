@@ -15,7 +15,11 @@ from app.sheets_sync import GoogleNotConnectedError, oauth_is_connected, sync_bo
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-_SORTABLE_COLUMNS = {"check_in": Booking.check_in, "check_out": Booking.check_out}
+_SORTABLE_COLUMNS = {
+    "check_in": Booking.check_in,
+    "check_out": Booking.check_out,
+    "booked_at": Booking.booked_at,
+}
 
 
 def query_bookings(

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.analytics import financial_summary, landowner_statement
+from app.analytics import financial_summary, landowner_justification, landowner_statement
 from app.database import get_db
 
 router = APIRouter()
@@ -24,6 +24,7 @@ def monthly_view(
 
     statement = landowner_statement(db, year, month)
     summary = financial_summary(db, year, month)
+    justification = landowner_justification(db, year, month)
 
     prev_month = 12 if month == 1 else month - 1
     prev_year = year - 1 if month == 1 else year
@@ -38,6 +39,7 @@ def monthly_view(
             "month": month,
             "statement": statement,
             "summary": summary,
+            "justification": justification,
             "prev_year": prev_year,
             "prev_month": prev_month,
             "next_year": next_year,

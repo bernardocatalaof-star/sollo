@@ -34,6 +34,36 @@
   {% endif %}
 </table>
 
+<h2>Landowner justification</h2>
+<p class="muted">Every individual cleaning and night-slept date this month, per cabin — backup for the amounts above if the landowner asks.</p>
+{% for cabin in justification.by_cabin %}
+<h3>{{ cabin.cabin_name }}</h3>
+<div class="justification-grid">
+  <div>
+    <h4>Cleanings ({{ cabin.cleanings|length }})</h4>
+    <ul class="date-list">
+      {% for c in cabin.cleanings %}
+      <li>{{ c.date.strftime("%Y-%m-%d") }} — {{ c.guest_name or "Guest" }} <span class="muted">(€{{ "%.2f"|format(c.amount) }})</span></li>
+      {% else %}
+      <li class="muted">None this month.</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div>
+    <h4>Nights slept ({{ cabin.nights|length }})</h4>
+    <ul class="date-list">
+      {% for n in cabin.nights %}
+      <li>{{ n.date.strftime("%Y-%m-%d") }} — {{ n.guest_name or "Guest" }}</li>
+      {% else %}
+      <li class="muted">None this month.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% else %}
+<p class="muted">No activity this month.</p>
+{% endfor %}
+
 <h2>Financial summary</h2>
 <div class="cards">
   <div class="card"><div class="label">Revenue</div><div class="value">€{{ "%.2f"|format(summary.total_revenue) }}</div>

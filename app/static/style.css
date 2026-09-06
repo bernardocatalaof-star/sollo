@@ -104,6 +104,30 @@ button.danger { background: var(--bad); }
 .flags-list { list-style: none; padding: 0; }
 .flags-list li { padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.5rem; }
 
+.justification-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.justification-grid h4 { margin: 0 0 0.5rem; color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+
+.date-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.date-list li { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.date-list li:last-child { border-bottom: none; }
+
+@media (max-width: 700px) {
+  .justification-grid { grid-template-columns: 1fr; }
+}
+
 .notice { background: rgba(79,140,255,0.1); border: 1px solid var(--accent); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; }
 .notice.error { background: rgba(239,90,90,0.1); border-color: var(--bad); }
 .notice a { color: var(--accent); }

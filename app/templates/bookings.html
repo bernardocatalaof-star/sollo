@@ -47,6 +47,7 @@
     <tr>
       <th>Guest</th>
       <th>Cabin</th>
+      <th>{{ sort_link("booked_at", "Booked on") }}</th>
       <th>{{ sort_link("check_in", "Check-in") }}</th>
       <th>{{ sort_link("check_out", "Check-out") }}</th>
       <th>Nights</th>
@@ -60,6 +61,7 @@
     <tr>
       <td><a class="rowlink" href="/bookings/{{ booking.id }}">{{ booking.guest_name or "—" }}</a></td>
       <td>{{ booking.cabin.name }}</td>
+      <td>{{ booking.booked_at or "—" }}</td>
       <td>{{ booking.check_in }}</td>
       <td>{{ booking.check_out }}</td>
       <td>{{ fees.nights }}</td>
@@ -71,7 +73,7 @@
       <td>{% if booking.flags %}<span class="badge">{{ booking.flags|length }}</span>{% endif %}</td>
     </tr>
     {% else %}
-    <tr><td colspan="8" class="muted">No bookings yet — try "Sync from Sheet".</td></tr>
+    <tr><td colspan="9" class="muted">No bookings yet — try "Sync from Sheet".</td></tr>
     {% endfor %}
   </tbody>
 </table>
