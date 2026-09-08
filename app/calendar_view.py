@@ -9,6 +9,7 @@ import calendar as _calendar
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import Booking, Cabin
@@ -72,10 +73,11 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
     month_start = date(year, month, 1)
     next_month_start = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
 
+    effective_check_out = func.coalesce(Booking.check_out_override, Booking.check_out)
     bookings = (
         db.query(Booking)
-        .options(joinedload(Booking.cabin))
-        .filter(Booking.check_in < next_month_start, Booking.check_out > month_start)
+        .options(joinedload(Booking.cabin), joinedload(Booking.cabin_override))
+        .filter(Booking.check_in < next_month_start, effective_check_out > month_start)
         .order_by(Booking.check_in)
         .all()
     )
@@ -88,8 +90,9 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
 
         segments = []
         for booking in bookings:
+            booking_check_out = booking.effective_check_out
             overlap_start = max(booking.check_in, week_start)
-            overlap_end = min(booking.check_out, week_end_exclusive)
+            overlap_end = min(booking_check_out, week_end_exclusive)
             span = (overlap_end - overlap_start).days
             if span <= 0:
                 # No full night falls in this week -- but if checkout lands exactly
@@ -97,7 +100,7 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
                 # all 3 nights in the previous week), it still needs a same-day
                 # "checkout stub" here so the bar visibly reaches Monday instead of
                 # stopping dead at Sunday's edge.
-                if booking.check_out == week_start:
+                if booking_check_out == week_start:
                     segments.append((0, 0, 1, 2, booking))  # first half of Monday
                 continue
             start_col = (overlap_start - week_start).days
@@ -106,7 +109,7 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
             # If it's a continuation from a previous week, or carries on into the
             # next, it runs edge-to-edge instead -- there's no "half day" to show.
             starts_at_checkin = overlap_start == booking.check_in
-            ends_at_checkout = overlap_end == booking.check_out and end_col < 7
+            ends_at_checkout = overlap_end == booking_check_out and end_col < 7
             # 14 half-day columns per week (2 per day): a bar that truly starts/ends
             # on check-in/check-out begins or finishes at that day's midpoint;
             # otherwise it runs to the full edge of the column.
@@ -133,7 +136,7 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
             bars.append(
                 Bar(
                     booking=booking,
-                    color=colors.get(booking.cabin_id, "#8b90a0"),
+                    color=colors.get(booking.cabin_override_id or booking.cabin_id, "#8b90a0"),
                     start_col=start_col,
                     span=span,
                     lane=lane,

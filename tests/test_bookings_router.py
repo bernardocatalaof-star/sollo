@@ -1,7 +1,7 @@
 from datetime import date
 
 from app.models import Booking, Cabin
-from app.routers.bookings import query_bookings
+from app.routers.bookings import clear_booking_override, query_bookings, set_booking_override
 
 
 def _make_booking(db, external_id, check_in, check_out, booked_at=None):
@@ -88,3 +88,66 @@ def test_query_bookings_filters_by_check_out_range(db_session):
     )
 
     assert [b.external_id for b in bookings] == ["B"]
+
+
+def test_set_booking_override_saves_cabin_checkout_and_note(db_session):
+    booking = _make_booking(db_session, "A", date(2026, 8, 1), date(2026, 8, 5))
+    other_cabin = Cabin(name="Cabin 2")
+    db_session.add(other_cabin)
+    db_session.flush()
+
+    set_booking_override(
+        booking.id,
+        cabin_override_id=str(other_cabin.id),
+        check_out_override="2026-08-03",
+        skip_cleaning_fee="1",
+        override_note="left early",
+        db=db_session,
+    )
+
+    db_session.refresh(booking)
+    assert booking.cabin_override_id == other_cabin.id
+    assert booking.check_out_override == date(2026, 8, 3)
+    assert booking.skip_cleaning_fee is True
+    assert booking.override_note == "left early"
+
+
+def test_set_booking_override_with_blank_fields_clears_overrides(db_session):
+    booking = _make_booking(db_session, "A", date(2026, 8, 1), date(2026, 8, 5))
+    booking.check_out_override = date(2026, 8, 3)
+    booking.skip_cleaning_fee = True
+    db_session.commit()
+
+    set_booking_override(
+        booking.id,
+        cabin_override_id="",
+        check_out_override="",
+        skip_cleaning_fee="",
+        override_note="",
+        db=db_session,
+    )
+
+    db_session.refresh(booking)
+    assert booking.cabin_override_id is None
+    assert booking.check_out_override is None
+    assert booking.skip_cleaning_fee is False
+
+
+def test_clear_booking_override_resets_all_fields(db_session):
+    booking = _make_booking(db_session, "A", date(2026, 8, 1), date(2026, 8, 5))
+    other_cabin = Cabin(name="Cabin 2")
+    db_session.add(other_cabin)
+    db_session.flush()
+    booking.cabin_override_id = other_cabin.id
+    booking.check_out_override = date(2026, 8, 3)
+    booking.skip_cleaning_fee = True
+    booking.override_note = "left early"
+    db_session.commit()
+
+    clear_booking_override(booking.id, db=db_session)
+
+    db_session.refresh(booking)
+    assert booking.cabin_override_id is None
+    assert booking.check_out_override is None
+    assert booking.skip_cleaning_fee is False
+    assert booking.override_note == ""

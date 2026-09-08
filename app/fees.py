@@ -49,7 +49,10 @@ def calculate_booking_fees(booking: Booking) -> BookingFees:
     nights = booking.nights
     overnight_fee = round(nights * settings.overnight_fee_per_night, 2)
 
-    holiday_cleaning = is_public_holiday(booking.check_out)
+    if booking.skip_cleaning_fee:
+        return BookingFees(nights=nights, overnight_fee=overnight_fee, cleaning_fee=0.0, is_holiday_cleaning=False)
+
+    holiday_cleaning = is_public_holiday(booking.effective_check_out)
     cleaning_fee = settings.cleaning_fee_holiday if holiday_cleaning else settings.cleaning_fee_standard
 
     return BookingFees(

@@ -54,6 +54,10 @@ def get_db():
 _COLUMN_MIGRATIONS = [
     ("bookings", "booked_at", "DATE"),
     ("bookings", "phone", "VARCHAR(60)"),
+    ("bookings", "cabin_override_id", "INTEGER"),
+    ("bookings", "check_out_override", "DATE"),
+    ("bookings", "skip_cleaning_fee", "BOOLEAN DEFAULT FALSE"),
+    ("bookings", "override_note", "VARCHAR(300) DEFAULT ''"),
 ]
 
 
@@ -69,18 +73,43 @@ def run_schema_migrations(engine: Engine) -> None:
 
 
 def run_data_fixes(engine: Engine) -> None:
-    """One-off data corrections. Each fix must be idempotent (safe to run on
-    every startup) since there's no "already ran" tracking -- once applied, the
-    WHERE clause simply matches nothing on subsequent runs."""
+    """One-off data corrections, safe to run on every startup. Most fixes are
+    idempotent purely by their WHERE clause (it naturally matches nothing once
+    applied); a fix whose target field a user might legitimately reset back to
+    its "unfixed" value afterwards instead tracks completion via a Settings
+    marker, so it only ever applies once."""
     inspector = inspect(engine)
-    if "expenses" not in inspector.get_table_names():
-        return
-    with engine.begin() as conn:
-        # Madalena's cost was originally logged under "Other" before the
-        # dedicated "Staff" category existed.
-        conn.execute(
-            text(
-                "UPDATE expenses SET category = 'staff' "
-                "WHERE category = 'other' AND lower(description) LIKE '%madalena%'"
+    table_names = inspector.get_table_names()
+    if "expenses" in table_names:
+        with engine.begin() as conn:
+            # Madalena's cost was originally logged under "Other" before the
+            # dedicated "Staff" category existed.
+            conn.execute(
+                text(
+                    "UPDATE expenses SET category = 'staff' "
+                    "WHERE category = 'other' AND lower(description) LIKE '%madalena%'"
+                )
             )
-        )
+
+    if "bookings" in table_names and "cabins" in table_names and "settings" in table_names:
+        with engine.begin() as conn:
+            # Booking 9MW-6KRD's Sheet "products" cell recorded an incomplete edit
+            # history ("Olivia,Santiago (2 nights)") missing the final change back
+            # to Olivia, so the last-comma-segment parsing rule picked up Santiago.
+            # This is a one-off Sheet data issue, not a parser bug -- correct it via
+            # an override that survives re-syncs. Tracked with a Settings marker
+            # (rather than "WHERE cabin_override_id IS NULL") so that manually
+            # clearing the override later doesn't cause it to silently come back.
+            already_applied = conn.execute(
+                text("SELECT value FROM settings WHERE key = 'data_fix_9mw_6krd_cabin'")
+            ).scalar()
+            if not already_applied:
+                conn.execute(
+                    text(
+                        "UPDATE bookings SET cabin_override_id = "
+                        "(SELECT id FROM cabins WHERE name = 'Olivia') "
+                        "WHERE external_id = '9MW-6KRD' "
+                        "AND EXISTS (SELECT 1 FROM cabins WHERE name = 'Olivia')"
+                    )
+                )
+                conn.execute(text("INSERT INTO settings (key, value) VALUES ('data_fix_9mw_6krd_cabin', '1')"))

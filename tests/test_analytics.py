@@ -392,3 +392,68 @@ def test_landowner_justification_cleaning_amount_matches_fee_calculation(db_sess
     august = landowner_justification(db_session, 2026, 8)
     cabin1 = next(c for c in august.by_cabin if c.cabin_name == "Cabin 1")
     assert cabin1.cleanings[0].amount in (33.0, 40.0)  # standard or PT-holiday rate
+
+
+def test_landowner_statement_bills_the_overridden_cabin_not_the_synced_one(db_session):
+    cabin1, cabin2, bookings = _seed(db_session)
+    r1 = next(b for b in bookings if b.external_id == "R-1")
+    r1.cabin_override_id = cabin2.id
+    db_session.commit()
+
+    august = landowner_statement(db_session, 2026, 8)
+    cabin1_entry = next(c for c in august.by_cabin if c.cabin_name == "Cabin 1")
+    cabin2_entry = next(c for c in august.by_cabin if c.cabin_name == "Cabin 2")
+
+    # R-1 (3 nights, 1 cleaning) moves entirely to Cabin 2; only R-3's 2 August
+    # nights remain under Cabin 1, with no cleaning (it checks out in September).
+    assert cabin1_entry.nights == 2
+    assert cabin1_entry.cleanings == 0
+    assert cabin2_entry.nights == 3 + 2  # R-1's 3 nights now attributed to Cabin 2, plus R-2's own 2
+    assert cabin2_entry.cleanings == 2  # both R-1 and R-2 now bill their cleaning under Cabin 2
+
+
+def test_landowner_statement_skips_cleaning_for_a_no_show(db_session):
+    cabin1, cabin2, bookings = _seed(db_session)
+    r1 = next(b for b in bookings if b.external_id == "R-1")
+    r1.skip_cleaning_fee = True
+    db_session.commit()
+
+    august = landowner_statement(db_session, 2026, 8)
+    cabin1_entry = next(c for c in august.by_cabin if c.cabin_name == "Cabin 1")
+
+    assert cabin1_entry.cleanings == 0
+    assert cabin1_entry.cleaning_total == 0.0
+    assert cabin1_entry.nights == 5  # land fee is still owed -- it's not a cancellation
+
+
+def test_landowner_statement_bills_fewer_nights_when_checkout_is_overridden(db_session):
+    cabin1, cabin2, bookings = _seed(db_session)
+    r1 = next(b for b in bookings if b.external_id == "R-1")  # Aug 1 -> Aug 4, 3 nights
+    r1.check_out_override = date(2026, 8, 2)  # guest actually left after 1 night
+    db_session.commit()
+
+    august = landowner_statement(db_session, 2026, 8)
+    cabin1_entry = next(c for c in august.by_cabin if c.cabin_name == "Cabin 1")
+
+    # R-1 now contributes 1 night instead of 3, plus R-3's 2 August nights = 3.
+    assert cabin1_entry.nights == 3
+    # The cleaning is still billed (checkout month unchanged), just on the earlier date.
+    assert cabin1_entry.cleanings == 1
+
+
+def test_landowner_justification_uses_the_overridden_cabin_and_checkout_date(db_session):
+    cabin1, cabin2, bookings = _seed(db_session)
+    r1 = next(b for b in bookings if b.external_id == "R-1")
+    r1.cabin_override_id = cabin2.id
+    r1.check_out_override = date(2026, 8, 2)
+    db_session.commit()
+
+    august = landowner_justification(db_session, 2026, 8)
+    by_cabin = {c.cabin_name: c for c in august.by_cabin}
+
+    assert [(n.date, n.guest_name) for n in by_cabin["Cabin 2"].nights if n.guest_name == "A"] == [
+        (date(2026, 8, 1), "A")
+    ]
+    assert [(c.date, c.guest_name) for c in by_cabin["Cabin 2"].cleanings if c.guest_name == "A"] == [
+        (date(2026, 8, 2), "A")
+    ]

@@ -35,8 +35,8 @@
         <a class="cal-bar"
            href="/bookings/{{ bar.booking.id }}"
            style="grid-column: {{ bar.grid_start }} / {{ bar.grid_end }}; grid-row: {{ bar.lane + 1 }}; background: {{ bar.color }}33; border-color: {{ bar.color }}; color: {{ bar.color }};"
-           title="{{ bar.booking.cabin.name }} — {{ bar.booking.guest_name or 'Guest' }}">
-          {{ bar.booking.guest_name or "Guest" }} <span class="cal-bar-cabin">· {{ bar.booking.cabin.name }}</span>
+           title="{{ bar.booking.effective_cabin.name }} — {{ bar.booking.guest_name or 'Guest' }}">
+          {{ bar.booking.guest_name or "Guest" }} <span class="cal-bar-cabin">· {{ bar.booking.effective_cabin.name }}</span>
         </a>
         {% endfor %}
       </div>

@@ -112,9 +112,39 @@ def list_bookings(
 def booking_detail(request: Request, booking_id: int, db: Session = Depends(get_db)):
     booking = db.get(Booking, booking_id)
     fees = calculate_booking_fees(booking)
+    cabins = db.query(Cabin).order_by(Cabin.name).all()
     return templates.TemplateResponse(
-        "booking_detail.html", {"request": request, "booking": booking, "fees": fees}
+        "booking_detail.html", {"request": request, "booking": booking, "fees": fees, "cabins": cabins}
     )
+
+
+@router.post("/bookings/{booking_id}/override")
+def set_booking_override(
+    booking_id: int,
+    cabin_override_id: str = Form(""),
+    check_out_override: str = Form(""),
+    skip_cleaning_fee: str = Form(""),
+    override_note: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    booking = db.get(Booking, booking_id)
+    booking.cabin_override_id = int(cabin_override_id) if cabin_override_id else None
+    booking.check_out_override = date.fromisoformat(check_out_override) if check_out_override else None
+    booking.skip_cleaning_fee = skip_cleaning_fee == "1"
+    booking.override_note = override_note
+    db.commit()
+    return RedirectResponse(f"/bookings/{booking_id}", status_code=303)
+
+
+@router.post("/bookings/{booking_id}/override/clear")
+def clear_booking_override(booking_id: int, db: Session = Depends(get_db)):
+    booking = db.get(Booking, booking_id)
+    booking.cabin_override_id = None
+    booking.check_out_override = None
+    booking.skip_cleaning_fee = False
+    booking.override_note = ""
+    db.commit()
+    return RedirectResponse(f"/bookings/{booking_id}", status_code=303)
 
 
 @router.post("/bookings/{booking_id}/flags")

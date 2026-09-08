@@ -14,6 +14,7 @@ import calendar
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
@@ -28,13 +29,20 @@ def _month_bounds(year: int, month: int) -> tuple[date, date]:
     return start, end
 
 
+def _effective_check_out_col():
+    """SQL-side equivalent of Booking.effective_check_out, for use in query
+    filters where a Python property can't be evaluated."""
+    return func.coalesce(Booking.check_out_override, Booking.check_out)
+
+
 def bookings_closing_in_month(db: Session, year: int, month: int) -> list[Booking]:
     start, end = _month_bounds(year, month)
+    effective_check_out = _effective_check_out_col()
     return (
         db.query(Booking)
-        .options(joinedload(Booking.cabin))
-        .filter(Booking.check_out >= start, Booking.check_out <= end)
-        .order_by(Booking.check_out)
+        .options(joinedload(Booking.cabin), joinedload(Booking.cabin_override))
+        .filter(effective_check_out >= start, effective_check_out <= end)
+        .order_by(effective_check_out)
         .all()
     )
 
@@ -56,17 +64,18 @@ def _nights_in_month(db: Session, year: int, month: int) -> list[tuple[Booking, 
     overlap window uses an EXCLUSIVE end (first day of next month)."""
     start, _ = _month_bounds(year, month)
     next_month_start = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    effective_check_out = _effective_check_out_col()
 
     overlapping = (
         db.query(Booking)
-        .options(joinedload(Booking.cabin))
-        .filter(Booking.check_in < next_month_start, Booking.check_out > start)
+        .options(joinedload(Booking.cabin), joinedload(Booking.cabin_override))
+        .filter(Booking.check_in < next_month_start, effective_check_out > start)
         .all()
     )
     result = []
     for booking in overlapping:
         overlap_start = max(booking.check_in, start)
-        overlap_end = min(booking.check_out, next_month_start)
+        overlap_end = min(booking.effective_check_out, next_month_start)
         nights = max((overlap_end - overlap_start).days, 0)
         if nights:
             result.append((booking, nights))
@@ -102,17 +111,22 @@ def landowner_statement(db: Session, year: int, month: int) -> LandownerStatemen
 
     # Land (overnight) fee: nights actually slept in THIS calendar month.
     for booking, nights_in_month in _nights_in_month(db, year, month):
-        entry = by_cabin.setdefault(booking.cabin.name, CabinOwed(cabin_name=booking.cabin.name))
+        cabin_name = booking.effective_cabin.name
+        entry = by_cabin.setdefault(cabin_name, CabinOwed(cabin_name=cabin_name))
         entry.nights += nights_in_month
         entry.overnight_total = round(
             entry.overnight_total + nights_in_month * settings.overnight_fee_per_night, 2
         )
 
     # Cleaning fee: one per stay, charged when the clean happens -- the calendar
-    # month containing check-out.
+    # month containing check-out. A no-show marked skip_cleaning_fee never got
+    # cleaned, so it doesn't count as a cleaning at all.
     for booking in bookings_closing_in_month(db, year, month):
+        if booking.skip_cleaning_fee:
+            continue
         fees = calculate_booking_fees(booking)
-        entry = by_cabin.setdefault(booking.cabin.name, CabinOwed(cabin_name=booking.cabin.name))
+        cabin_name = booking.effective_cabin.name
+        entry = by_cabin.setdefault(cabin_name, CabinOwed(cabin_name=cabin_name))
         entry.cleanings += 1
         entry.cleaning_total = round(entry.cleaning_total + fees.cleaning_fee, 2)
 
@@ -153,21 +167,25 @@ def landowner_justification(db: Session, year: int, month: int) -> LandownerJust
     by_cabin: dict[str, CabinJustification] = {}
 
     for booking, nights_in_month in _nights_in_month(db, year, month):
-        entry = by_cabin.setdefault(booking.cabin.name, CabinJustification(cabin_name=booking.cabin.name))
+        cabin_name = booking.effective_cabin.name
+        entry = by_cabin.setdefault(cabin_name, CabinJustification(cabin_name=cabin_name))
         month_start, _ = _month_bounds(year, month)
         next_month_start = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
         overlap_start = max(booking.check_in, month_start)
-        overlap_end = min(booking.check_out, next_month_start)
+        overlap_end = min(booking.effective_check_out, next_month_start)
         d = overlap_start
         while d < overlap_end:
             entry.nights.append(NightEntry(date=d, guest_name=booking.guest_name))
             d += timedelta(days=1)
 
     for booking in bookings_closing_in_month(db, year, month):
+        if booking.skip_cleaning_fee:
+            continue
         fees = calculate_booking_fees(booking)
-        entry = by_cabin.setdefault(booking.cabin.name, CabinJustification(cabin_name=booking.cabin.name))
+        cabin_name = booking.effective_cabin.name
+        entry = by_cabin.setdefault(cabin_name, CabinJustification(cabin_name=cabin_name))
         entry.cleanings.append(
-            CleaningEntry(date=booking.check_out, guest_name=booking.guest_name, amount=fees.cleaning_fee)
+            CleaningEntry(date=booking.effective_check_out, guest_name=booking.guest_name, amount=fees.cleaning_fee)
         )
 
     for entry in by_cabin.values():
@@ -320,10 +338,9 @@ def _activity_month_range(db: Session) -> tuple[tuple[int, int], tuple[int, int]
     any booking or Extra Revenue activity -- from the earliest entry on record
     through the latest, which naturally includes future months for stays already
     booked ahead. Falls back to just the current month when there's no data yet."""
-    from sqlalchemy import func
-
-    min_checkout = db.query(func.min(Booking.check_out)).scalar()
-    max_checkout = db.query(func.max(Booking.check_out)).scalar()
+    effective_check_out = _effective_check_out_col()
+    min_checkout = db.query(func.min(effective_check_out)).scalar()
+    max_checkout = db.query(func.max(effective_check_out)).scalar()
     min_extra = db.query(func.min(ExtraRevenue.month)).scalar()
     max_extra = db.query(func.max(ExtraRevenue.month)).scalar()
 
@@ -517,8 +534,9 @@ def occupancy_by_cabin_and_month(
 
         nights_by_cabin = {cabin.id: 0 for cabin in cabins}
         for booking, nights in _nights_in_month(db, y, m):
-            if booking.cabin_id in nights_by_cabin:
-                nights_by_cabin[booking.cabin_id] += nights
+            effective_cabin_id = booking.cabin_override_id or booking.cabin_id
+            if effective_cabin_id in nights_by_cabin:
+                nights_by_cabin[effective_cabin_id] += nights
 
         cabin_rates = [
             CabinRate(

@@ -60,15 +60,16 @@
     {% for booking, fees in rows %}
     <tr>
       <td><a class="rowlink" href="/bookings/{{ booking.id }}">{{ booking.guest_name or "—" }}</a></td>
-      <td>{{ booking.cabin.name }}</td>
+      <td>{{ booking.effective_cabin.name }}{% if booking.cabin_override_id %}<span class="badge" title="Cabin corrected from {{ booking.cabin.name }}">corrected</span>{% endif %}</td>
       <td>{{ booking.booked_at or "—" }}</td>
       <td>{{ booking.check_in }}</td>
-      <td>{{ booking.check_out }}</td>
+      <td>{{ booking.effective_check_out }}{% if booking.check_out_override %}<span class="badge" title="Original checkout: {{ booking.check_out }}">corrected</span>{% endif %}</td>
       <td>{{ fees.nights }}</td>
       <td>€{{ "%.2f"|format(booking.total_price) }}</td>
       <td>
         €{{ "%.2f"|format(fees.total_owed) }}
         {% if fees.is_holiday_cleaning %}<span class="badge holiday">holiday clean</span>{% endif %}
+        {% if booking.skip_cleaning_fee %}<span class="badge" title="No cleaning fee (no-show)">no-show</span>{% endif %}
       </td>
       <td>{% if booking.flags %}<span class="badge">{{ booking.flags|length }}</span>{% endif %}</td>
     </tr>

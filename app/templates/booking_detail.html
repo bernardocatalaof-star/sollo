@@ -3,9 +3,15 @@
 {% block content %}
 <p><a href="/bookings" class="muted">&larr; Back to bookings</a></p>
 <h1>{{ booking.guest_name or "Guest" }}</h1>
-<p class="muted">{{ booking.cabin.name }} · {{ booking.check_in }} → {{ booking.check_out }} · {{ booking.booking_source or "unknown source" }}</p>
+<p class="muted">
+  {{ booking.effective_cabin.name }}{% if booking.cabin_override_id %} <span class="badge" title="Synced value: {{ booking.cabin.name }}">corrected</span>{% endif %}
+  · {{ booking.check_in }} → {{ booking.effective_check_out }}{% if booking.check_out_override %} <span class="badge" title="Synced value: {{ booking.check_out }}">corrected</span>{% endif %}
+  · {{ booking.booking_source or "unknown source" }}
+</p>
 <p class="muted">Reference: {{ booking.external_id }} · Booked on: {{ booking.booked_at if booking.booked_at else "not set — check COL_BOOKED_AT / the sheet's raw value" }}</p>
 <p class="muted">Phone: {% if booking.phone %}<a href="tel:{{ booking.phone }}">{{ booking.phone }}</a>{% else %}not set — check COL_CUSTOMER_PHONE / the sheet's raw value{% endif %}</p>
+{% if booking.skip_cleaning_fee %}<p class="notice">No-show: marked as not needing cleaning at checkout (still billed for land fee/revenue).</p>{% endif %}
+{% if booking.override_note %}<p class="muted">Correction note: {{ booking.override_note }}</p>{% endif %}
 
 <div class="cards">
   <div class="card">
@@ -28,6 +34,28 @@
     </div>
   </div>
 </div>
+
+<h2>Correct this booking</h2>
+<p class="muted">For landowner billing: fix the cabin if the Sheet recorded the wrong one, mark a no-show that needs no cleaning, or shorten the stay if the guest left early. These corrections always win over the Sheet and survive future syncs.</p>
+<form class="filters" method="post" action="/bookings/{{ booking.id }}/override">
+  <label>Cabin
+    <select name="cabin_override_id">
+      <option value="">Use synced cabin ({{ booking.cabin.name }})</option>
+      {% for c in cabins %}
+        <option value="{{ c.id }}" {{ "selected" if booking.cabin_override_id == c.id else "" }}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Actual checkout <input type="date" name="check_out_override" value="{{ booking.check_out_override or '' }}" max="{{ booking.check_out }}"></label>
+  <label><input type="checkbox" name="skip_cleaning_fee" value="1" {{ "checked" if booking.skip_cleaning_fee else "" }}> No-show — skip cleaning fee</label>
+  <label>Note <input type="text" name="override_note" value="{{ booking.override_note }}" placeholder="Why is this corrected?" style="min-width:220px;"></label>
+  <button type="submit">Save correction</button>
+</form>
+{% if booking.cabin_override_id or booking.check_out_override or booking.skip_cleaning_fee or booking.override_note %}
+<form class="inline" method="post" action="/bookings/{{ booking.id }}/override/clear" onsubmit="return confirm('Clear all corrections for this booking?')">
+  <button type="submit">Clear correction</button>
+</form>
+{% endif %}
 
 <h2>Issues & occurrences</h2>
 <ul class="flags-list">

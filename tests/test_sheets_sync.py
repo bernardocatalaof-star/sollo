@@ -177,6 +177,30 @@ def test_sync_does_not_wipe_bookings_when_fetch_returns_no_rows(db_session, monk
     assert db_session.query(Booking).filter(Booking.external_id == "R-9").count() == 1
 
 
+def test_sync_never_overwrites_manual_billing_corrections(db_session, monkeypatch):
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", "data/sample_bookings.csv")
+    sync_bookings(db_session)
+
+    booking = db_session.query(Booking).filter(Booking.external_id == "R-1001").first()
+    other_cabin = Cabin(name="Corrected Cabin")
+    db_session.add(other_cabin)
+    db_session.flush()
+    booking.cabin_override_id = other_cabin.id
+    booking.check_out_override = date(2026, 7, 1)
+    booking.skip_cleaning_fee = True
+    booking.override_note = "guest left early"
+    db_session.commit()
+
+    sync_bookings(db_session)
+
+    db_session.refresh(booking)
+    assert booking.cabin_override_id == other_cabin.id
+    assert booking.check_out_override == date(2026, 7, 1)
+    assert booking.skip_cleaning_fee is True
+    assert booking.override_note == "guest left early"
+
+
 def test_holiday_stay_gets_holiday_cleaning_rate_after_sync(db_session, monkeypatch):
     monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
     monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", "data/sample_bookings.csv")

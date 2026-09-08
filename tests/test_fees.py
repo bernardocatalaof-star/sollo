@@ -49,3 +49,25 @@ def test_zero_night_stay_has_no_overnight_fee():
     fees = calculate_booking_fees(booking)
     assert fees.nights == 0
     assert fees.overnight_fee == 0.0
+
+
+def test_check_out_override_shortens_nights_and_moves_holiday_check():
+    # Recorded checkout is on the PT holiday (2026-08-15), but the guest actually
+    # left a day earlier -- both nights and the holiday cleaning check should
+    # follow the corrected date, not the synced one.
+    booking = _booking(date(2026, 8, 12), date(2026, 8, 15))
+    booking.check_out_override = date(2026, 8, 14)
+    fees = calculate_booking_fees(booking)
+    assert fees.nights == 2
+    assert fees.is_holiday_cleaning is False
+    assert fees.cleaning_fee == 33.0
+
+
+def test_skip_cleaning_fee_zeroes_cleaning_but_keeps_overnight_fee():
+    booking = _booking(date(2026, 8, 1), date(2026, 8, 4))
+    booking.skip_cleaning_fee = True
+    fees = calculate_booking_fees(booking)
+    assert fees.nights == 3
+    assert fees.overnight_fee == round(3 * 19.8, 2)
+    assert fees.cleaning_fee == 0.0
+    assert fees.is_holiday_cleaning is False

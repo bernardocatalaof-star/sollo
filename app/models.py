@@ -12,7 +12,7 @@ class Cabin(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
 
-    bookings: Mapped[list["Booking"]] = relationship(back_populates="cabin")
+    bookings: Mapped[list["Booking"]] = relationship(back_populates="cabin", foreign_keys="Booking.cabin_id")
 
 
 class Booking(Base):
@@ -23,7 +23,7 @@ class Booking(Base):
     external_id: Mapped[str] = mapped_column(String(120), index=True)
 
     cabin_id: Mapped[int] = mapped_column(ForeignKey("cabins.id"))
-    cabin: Mapped["Cabin"] = relationship(back_populates="bookings")
+    cabin: Mapped["Cabin"] = relationship(back_populates="bookings", foreign_keys=[cabin_id])
 
     guest_name: Mapped[str] = mapped_column(String(200), default="")
     phone: Mapped[str] = mapped_column(String(60), default="")
@@ -37,11 +37,28 @@ class Booking(Base):
     synced_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    # Manual corrections for landowner billing. The Sheet sync never sets these
+    # (it only assigns the keys it knows about), so they survive re-syncs and
+    # always take precedence over the synced values when present.
+    cabin_override_id: Mapped[int | None] = mapped_column(ForeignKey("cabins.id"), nullable=True)
+    cabin_override: Mapped["Cabin | None"] = relationship(foreign_keys=[cabin_override_id])
+    check_out_override: Mapped[date | None] = mapped_column(Date, nullable=True)
+    skip_cleaning_fee: Mapped[bool] = mapped_column(default=False)  # no-show: not cancelled/refunded, but no cleaning needed
+    override_note: Mapped[str] = mapped_column(String(300), default="")
+
     flags: Mapped[list["StayFlag"]] = relationship(back_populates="booking", cascade="all, delete-orphan")
 
     @property
+    def effective_cabin(self) -> "Cabin":
+        return self.cabin_override or self.cabin
+
+    @property
+    def effective_check_out(self):
+        return self.check_out_override or self.check_out
+
+    @property
     def nights(self) -> int:
-        return max((self.check_out - self.check_in).days, 0)
+        return max((self.effective_check_out - self.check_in).days, 0)
 
 
 class StayFlag(Base):
