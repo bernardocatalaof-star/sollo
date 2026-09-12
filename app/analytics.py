@@ -109,8 +109,12 @@ class LandownerStatement:
 def landowner_statement(db: Session, year: int, month: int) -> LandownerStatement:
     by_cabin: dict[str, CabinOwed] = {}
 
-    # Land (overnight) fee: nights actually slept in THIS calendar month.
+    # Land (overnight) fee: nights actually slept in THIS calendar month. A
+    # no-show marked skip_cleaning_fee never actually used the cabin, so it
+    # owes no land fee either -- only its revenue still counts (elsewhere).
     for booking, nights_in_month in _nights_in_month(db, year, month):
+        if booking.skip_cleaning_fee:
+            continue
         cabin_name = booking.effective_cabin.name
         entry = by_cabin.setdefault(cabin_name, CabinOwed(cabin_name=cabin_name))
         entry.nights += nights_in_month
@@ -167,6 +171,8 @@ def landowner_justification(db: Session, year: int, month: int) -> LandownerJust
     by_cabin: dict[str, CabinJustification] = {}
 
     for booking, nights_in_month in _nights_in_month(db, year, month):
+        if booking.skip_cleaning_fee:
+            continue
         cabin_name = booking.effective_cabin.name
         entry = by_cabin.setdefault(cabin_name, CabinJustification(cabin_name=cabin_name))
         month_start, _ = _month_bounds(year, month)

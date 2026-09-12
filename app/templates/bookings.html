@@ -69,7 +69,7 @@
       <td>
         €{{ "%.2f"|format(fees.total_owed) }}
         {% if fees.is_holiday_cleaning %}<span class="badge holiday">holiday clean</span>{% endif %}
-        {% if booking.skip_cleaning_fee %}<span class="badge" title="No cleaning fee (no-show)">no-show</span>{% endif %}
+        {% if booking.skip_cleaning_fee %}<span class="badge" title="No cleaning or land fee (no-show)">no-show</span>{% endif %}
       </td>
       <td>{% if booking.flags %}<span class="badge">{{ booking.flags|length }}</span>{% endif %}</td>
     </tr>

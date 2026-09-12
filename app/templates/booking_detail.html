@@ -10,7 +10,7 @@
 </p>
 <p class="muted">Reference: {{ booking.external_id }} · Booked on: {{ booking.booked_at if booking.booked_at else "not set — check COL_BOOKED_AT / the sheet's raw value" }}</p>
 <p class="muted">Phone: {% if booking.phone %}<a href="tel:{{ booking.phone }}">{{ booking.phone }}</a>{% else %}not set — check COL_CUSTOMER_PHONE / the sheet's raw value{% endif %}</p>
-{% if booking.skip_cleaning_fee %}<p class="notice">No-show: marked as not needing cleaning at checkout (still billed for land fee/revenue).</p>{% endif %}
+{% if booking.skip_cleaning_fee %}<p class="notice">No-show: no cleaning fee and no land fee owed (the cabin was never used) — revenue still counts.</p>{% endif %}
 {% if booking.override_note %}<p class="muted">Correction note: {{ booking.override_note }}</p>{% endif %}
 
 <div class="cards">
@@ -47,7 +47,7 @@
     </select>
   </label>
   <label>Actual checkout <input type="date" name="check_out_override" value="{{ booking.check_out_override or '' }}" max="{{ booking.check_out }}"></label>
-  <label><input type="checkbox" name="skip_cleaning_fee" value="1" {{ "checked" if booking.skip_cleaning_fee else "" }}> No-show — skip cleaning fee</label>
+  <label><input type="checkbox" name="skip_cleaning_fee" value="1" {{ "checked" if booking.skip_cleaning_fee else "" }}> No-show — no cleaning or land fee</label>
   <label>Note <input type="text" name="override_note" value="{{ booking.override_note }}" placeholder="Why is this corrected?" style="min-width:220px;"></label>
   <button type="submit">Save correction</button>
 </form>

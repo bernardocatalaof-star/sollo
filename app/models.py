@@ -43,7 +43,9 @@ class Booking(Base):
     cabin_override_id: Mapped[int | None] = mapped_column(ForeignKey("cabins.id"), nullable=True)
     cabin_override: Mapped["Cabin | None"] = relationship(foreign_keys=[cabin_override_id])
     check_out_override: Mapped[date | None] = mapped_column(Date, nullable=True)
-    skip_cleaning_fee: Mapped[bool] = mapped_column(default=False)  # no-show: not cancelled/refunded, but no cleaning needed
+    # no-show: not cancelled/refunded (revenue still counts), but the cabin was
+    # never actually used -- so neither the cleaning fee nor the land fee is owed.
+    skip_cleaning_fee: Mapped[bool] = mapped_column(default=False)
     override_note: Mapped[str] = mapped_column(String(300), default="")
 
     flags: Mapped[list["StayFlag"]] = relationship(back_populates="booking", cascade="all, delete-orphan")
