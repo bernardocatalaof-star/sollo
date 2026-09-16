@@ -63,10 +63,12 @@ class Settings(BaseSettings):
     tech_tools_fee: float = 66.0
     accounting_fee: float = 200.0
 
-    # Fixed supplies handed out at check-in (e.g. a polaroid photo), charged per
-    # stay that CHECKS IN this month -- not checkout, since that's when it's
-    # actually given out.
-    checkin_supplies_fee: float = 5.0
+    # Supplies (e.g. cleaning products, toiletries) are bought in irregular,
+    # lumpy batches -- not evenly every month -- so instead of expensing each
+    # purchase in full the month it happens, its cost per stay is smoothed by
+    # averaging actual "supplies" Ledger expenses and stays over a trailing
+    # window of this many months, then applied per stay closing each month.
+    supplies_rolling_window_months: int = 6
 
     # Dashboard "Profit year-to-date" goal bar target (EUR/year).
     annual_profit_target: float = 36000.0

@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from app.analytics import supplies_cost_per_stay_rate
+from app.config import settings
 from app.database import get_db
 from app.models import Expense, ExtraRevenue
 
@@ -33,4 +35,16 @@ def list_ledger(request: Request, db: Session = Depends(get_db)):
         for r in db.query(ExtraRevenue).all()
     ]
     entries.sort(key=lambda e: (e.month, e.created_at), reverse=True)
-    return templates.TemplateResponse("ledger.html", {"request": request, "entries": entries})
+
+    today = date.today()
+    supplies_rate = round(supplies_cost_per_stay_rate(db, today.year, today.month), 2)
+
+    return templates.TemplateResponse(
+        "ledger.html",
+        {
+            "request": request,
+            "entries": entries,
+            "supplies_rate": supplies_rate,
+            "supplies_window": settings.supplies_rolling_window_months,
+        },
+    )

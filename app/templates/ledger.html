@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Ledger</h1>
 <p class="muted">Manual entries not tied to a synced booking: costs (e.g. supplies) and extra income received outside the Sheet (e.g. bank transfers). Both feed into the Monthly Close-out and Dashboard.</p>
+<p class="muted">"Supplies" purchases are often lumpy (e.g. one big order that covers several months), so instead of hitting Profit in full the month they're bought, they're smoothed into a {{ supplies_window }}-month rolling average per stay: currently <strong>€{{ "%.2f"|format(supplies_rate) }}/stay</strong>.</p>
 
 <form class="inline" method="post" id="ledger-form" action="/expenses">
   <select id="ledger-type" onchange="ledgerTypeChanged()">

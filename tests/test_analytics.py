@@ -11,6 +11,7 @@ from app.analytics import (
     profit_year_to_date,
     revenue_by_month,
     sales_in_month,
+    supplies_cost_per_stay_rate,
 )
 from app.models import Booking, Cabin, Expense, ExtraRevenue
 
@@ -70,12 +71,13 @@ def test_landowner_statement_bills_cleaning_fee_only_in_checkout_month(db_sessio
 
 
 def test_financial_summary_includes_supply_expenses(db_session):
-    _seed(db_session)
+    _seed(db_session)  # includes a €25 "supplies" Expense in August
     summary = financial_summary(db_session, 2026, 8)
-    assert summary.total_supply_costs == 25.0
-    assert summary.total_costs == round(
-        summary.total_landowner_costs + 25.0 + summary.fixed_costs.total, 2
-    )
+    # "supplies" is excluded from total_other_costs -- it's smoothed into
+    # fixed_costs.supplies_per_stay instead, so it isn't double-counted.
+    assert summary.total_other_costs == 0.0
+    assert summary.fixed_costs.supplies_per_stay == 25.0  # €25 / 2 stays closing in the window x 2 stays this month
+    assert summary.total_costs == round(summary.total_landowner_costs + summary.fixed_costs.total, 2)
     assert summary.profit == round(summary.total_revenue - summary.total_costs, 2)
 
 
@@ -186,27 +188,42 @@ def test_fixed_costs_for_month_charges_flat_fees_even_with_no_bookings(db_sessio
 
 def test_fixed_costs_for_month_adds_website_percentage_and_per_transaction_fee(db_session):
     _seed(db_session)  # R-1 (320) + R-2 (180) close in August = 500 net_paid, 2 transactions
+    # _seed also adds a €25 "supplies" Expense in August, with 2 stays closing
+    # in August and none in the other 5 months of the rolling window.
 
     costs = fixed_costs_for_month(db_session, 2026, 8)
 
     assert costs.website_percentage == 20.0  # 4% of 500
     assert costs.website_per_transaction == 0.5  # 2 x 0.25
     assert costs.website_total == 220.5  # 200 + 20 + 0.5
-    # R-1, R-2, R-3 all check in during August (R-3 checks out in September)
-    assert costs.checkin_supplies == 15.0  # 3 x 5.0
-    assert costs.total == round(220.5 + 66.0 + 200.0 + 15.0, 2)
+    assert costs.supplies_rate_per_stay == 12.5  # €25 / 2 stays closing within the 6-month window
+    assert costs.supplies_per_stay == 25.0  # €12.5/stay x 2 stays closing this month
+    assert costs.total == round(220.5 + 66.0 + 200.0 + 25.0, 2)
 
 
-def test_checkin_supplies_charged_by_checkin_month_not_checkout_month(db_session):
-    _seed(db_session)
-    august = fixed_costs_for_month(db_session, 2026, 8)
-    september = fixed_costs_for_month(db_session, 2026, 9)
+def test_supplies_cost_per_stay_rate_smooths_a_lumpy_purchase_across_the_window(db_session):
+    cabin = Cabin(name="Cabin 1")
+    db_session.add(cabin)
+    db_session.flush()
+    # One big, one-off Amazon order in August -- no supplies expenses in the
+    # other 5 months of the trailing window.
+    db_session.add(Expense(month=date(2026, 8, 1), category="supplies", description="Amazon order", amount=300.0))
+    for m in range(3, 9):  # one stay closing each month, March through August
+        db_session.add(
+            Booking(external_id=f"S{m}", cabin=cabin, guest_name=f"G{m}",
+                    check_in=date(2026, m, 1), check_out=date(2026, m, 3), total_price=100.0)
+        )
+    db_session.commit()
 
-    # R-3 checks in Aug 30 but checks out Sep 2 -- the supply is handed out at
-    # check-in, so it belongs to August even though R-3's cleaning/revenue bill
-    # in September.
-    assert august.checkin_supplies == 15.0  # R-1 + R-2 + R-3, all check in in August
-    assert september.checkin_supplies == 0.0  # no booking checks in during September
+    rate = supplies_cost_per_stay_rate(db_session, 2026, 8)
+
+    # €300 spread across all 6 stays in the window, not dumped entirely onto
+    # August's single stay.
+    assert rate == 50.0
+
+
+def test_supplies_cost_per_stay_rate_is_zero_with_no_stays_in_the_window(db_session):
+    assert supplies_cost_per_stay_rate(db_session, 2026, 8) == 0.0
 
 
 def test_fixed_costs_only_counts_bookings_closing_in_month_not_extra_revenue(db_session):
@@ -225,7 +242,7 @@ def test_fixed_costs_only_counts_bookings_closing_in_month_not_extra_revenue(db_
 def test_financial_summary_deducts_fixed_costs_from_profit(db_session):
     _seed(db_session)
     summary = financial_summary(db_session, 2026, 8)
-    assert summary.fixed_costs.total == round(220.5 + 66.0 + 200.0 + 15.0, 2)
+    assert summary.fixed_costs.total == round(220.5 + 66.0 + 200.0 + 25.0, 2)
     assert summary.profit == round(summary.total_revenue - summary.total_costs, 2)
 
 
@@ -283,10 +300,11 @@ def test_cost_breakdown_by_month_shares_match_known_sources(db_session):
     by_label = {s.label: s for s in august.shares}
 
     summary = financial_summary(db_session, 2026, 8)
-    assert by_label.keys() == {"Landowner", "Tech", "Supplies", "Staff", "Maintenance"}
+    # "Supplies" isn't its own share -- it's smoothed into "Tech" via fixed_costs
+    # (a rolling average per stay), not shown as this month's raw Ledger amount.
+    assert by_label.keys() == {"Landowner", "Tech", "Staff", "Maintenance"}
     assert by_label["Landowner"].amount == summary.total_landowner_costs
     assert by_label["Tech"].amount == summary.fixed_costs.total
-    assert by_label["Supplies"].amount == 25.0
     assert by_label["Staff"].amount == 200.0
     assert by_label["Maintenance"].amount == 150.0
 
@@ -310,8 +328,10 @@ def test_cost_breakdown_profit_always_matches_real_financial_summary_profit(db_s
 
     # Every Expense category (including "Other" and an ad-hoc custom one) is
     # broken out as its own share, so nothing is hidden -- the chart's profit
-    # is exactly the same figure shown on the Dashboard/Monthly pages.
-    assert {"Landowner", "Tech", "Supplies", "Other", "Custom_Bucket"} <= {s.label for s in august.shares}
+    # is exactly the same figure shown on the Dashboard/Monthly pages. "Supplies"
+    # is the one exception: it's smoothed into "Tech" via fixed_costs instead.
+    assert {"Landowner", "Tech", "Other", "Custom_Bucket"} <= {s.label for s in august.shares}
+    assert "Supplies" not in {s.label for s in august.shares}
     assert august.profit == summary.profit
 
 

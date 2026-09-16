@@ -8,6 +8,10 @@ Attribution rules:
     each month, matching a night-by-night occupancy log.
   - Cleaning fee is booked entirely to the calendar month of CHECK-OUT, since
     that's when the clean (and the charge) actually happens.
+  - Supplies cost (a Ledger expense category) is smoothed into a trailing
+    rolling average per stay rather than expensed in full the month it was
+    purchased, since real purchases arrive in lumpy, irregular batches -- see
+    FixedCosts and supplies_cost_per_stay_rate.
 """
 
 import calendar
@@ -43,17 +47,6 @@ def bookings_closing_in_month(db: Session, year: int, month: int) -> list[Bookin
         .options(joinedload(Booking.cabin), joinedload(Booking.cabin_override))
         .filter(effective_check_out >= start, effective_check_out <= end)
         .order_by(effective_check_out)
-        .all()
-    )
-
-
-def bookings_starting_in_month(db: Session, year: int, month: int) -> list[Booking]:
-    start, end = _month_bounds(year, month)
-    return (
-        db.query(Booking)
-        .options(joinedload(Booking.cabin))
-        .filter(Booking.check_in >= start, Booking.check_in <= end)
-        .order_by(Booking.check_in)
         .all()
     )
 
@@ -203,22 +196,47 @@ def landowner_justification(db: Session, year: int, month: int) -> LandownerJust
     )
 
 
+def supplies_cost_per_stay_rate(db: Session, year: int, month: int) -> float:
+    """Average €/stay cost of "supplies" Ledger expenses, over a trailing window
+    of settings.supplies_rolling_window_months (ending at and including this
+    month). Supplies are bought in irregular, lumpy batches -- one Amazon order
+    can cover several months -- so expensing each purchase in full the month it
+    happens would make that one month look artificially bad and the following
+    ones artificially good. Averaging actual spend against actual stays over a
+    longer window smooths that out into a steady per-stay estimate."""
+    window = settings.supplies_rolling_window_months
+    total_amount = 0.0
+    total_stays = 0
+    for i in range(-(window - 1), 1):
+        y, m = _shift_month(year, month, i)
+        month_start, _ = _month_bounds(y, m)
+        total_amount += sum(
+            e.amount
+            for e in db.query(Expense).filter(Expense.month == month_start, Expense.category == "supplies").all()
+        )
+        total_stays += len(bookings_closing_in_month(db, y, m))
+    return total_amount / total_stays if total_stays else 0.0
+
+
 @dataclass
 class FixedCosts:
     """Recurring monthly operating costs, deducted from Profit alongside the
-    landowner and supply costs. Website costs mirror a typical payment
-    processor: a flat monthly fee plus a percentage + flat fee per transaction,
-    charged on bookings synced from the Sheet (not manual Extra Revenue entries),
-    attributed to the same month as Revenue (checkout). Check-in supplies (e.g. a
-    polaroid handed to each guest) are charged per stay that CHECKS IN this
-    month instead -- that's when the item is actually given out."""
+    landowner costs. Website costs mirror a typical payment processor: a flat
+    monthly fee plus a percentage + flat fee per transaction, charged on
+    bookings synced from the Sheet (not manual Extra Revenue entries),
+    attributed to the same month as Revenue (checkout). Supplies is a rolling
+    per-stay average (see supplies_cost_per_stay_rate) applied to stays
+    closing this month, rather than the raw Ledger "supplies" expenses for
+    this month specifically -- those are excluded from FinancialSummary's
+    other costs to avoid double-counting (see financial_summary)."""
 
     website_fixed: float = 0.0
     website_percentage: float = 0.0
     website_per_transaction: float = 0.0
     tech_tools: float = 0.0
     accounting: float = 0.0
-    checkin_supplies: float = 0.0
+    supplies_rate_per_stay: float = 0.0  # informational: the €/stay rate applied this month
+    supplies_per_stay: float = 0.0  # supplies_rate_per_stay x stays closing this month
 
     @property
     def website_total(self) -> float:
@@ -226,13 +244,13 @@ class FixedCosts:
 
     @property
     def total(self) -> float:
-        return round(self.website_total + self.tech_tools + self.accounting + self.checkin_supplies, 2)
+        return round(self.website_total + self.tech_tools + self.accounting + self.supplies_per_stay, 2)
 
 
 def fixed_costs_for_month(db: Session, year: int, month: int) -> FixedCosts:
     closing_bookings = bookings_closing_in_month(db, year, month)
     net_paid_total = sum(b.total_price for b in closing_bookings)
-    starting_bookings = bookings_starting_in_month(db, year, month)
+    supplies_rate = supplies_cost_per_stay_rate(db, year, month)
 
     return FixedCosts(
         website_fixed=settings.website_fixed_fee,
@@ -240,7 +258,8 @@ def fixed_costs_for_month(db: Session, year: int, month: int) -> FixedCosts:
         website_per_transaction=round(len(closing_bookings) * settings.website_per_transaction_fee, 2),
         tech_tools=settings.tech_tools_fee,
         accounting=settings.accounting_fee,
-        checkin_supplies=round(len(starting_bookings) * settings.checkin_supplies_fee, 2),
+        supplies_rate_per_stay=round(supplies_rate, 2),
+        supplies_per_stay=round(len(closing_bookings) * supplies_rate, 2),
     )
 
 
@@ -251,7 +270,7 @@ class FinancialSummary:
     booking_revenue: float = 0.0
     extra_revenue: float = 0.0
     total_landowner_costs: float = 0.0
-    total_supply_costs: float = 0.0
+    total_other_costs: float = 0.0  # Ledger expenses excluding "supplies" -- see fixed_costs for that
     fixed_costs: FixedCosts = field(default_factory=FixedCosts)
     stays_closed: int = 0
     nights_occupied: int = 0
@@ -264,7 +283,7 @@ class FinancialSummary:
 
     @property
     def total_costs(self) -> float:
-        return round(self.total_landowner_costs + self.total_supply_costs + self.fixed_costs.total, 2)
+        return round(self.total_landowner_costs + self.total_other_costs + self.fixed_costs.total, 2)
 
     @property
     def profit(self) -> float:
@@ -292,10 +311,11 @@ def financial_summary(db: Session, year: int, month: int) -> FinancialSummary:
     statement = landowner_statement(db, year, month)
     summary.total_landowner_costs = statement.total_owed
 
-    supply_total = (
-        db.query(Expense).filter(Expense.month == start).all()
-    )
-    summary.total_supply_costs = round(sum(e.amount for e in supply_total), 2)
+    # "supplies" Ledger expenses are excluded here -- they're smoothed into
+    # fixed_costs.supplies_per_stay via a rolling average instead of being
+    # expensed in full the month they were purchased (see FixedCosts).
+    other_expenses = db.query(Expense).filter(Expense.month == start, Expense.category != "supplies").all()
+    summary.total_other_costs = round(sum(e.amount for e in other_expenses), 2)
 
     summary.fixed_costs = fixed_costs_for_month(db, year, month)
 
@@ -455,10 +475,12 @@ def cost_breakdown_by_month(db: Session, year: int, month: int, count: int = 6) 
     """Last `count` months (ending at year/month): each month's Revenue split into
     every cost category that reduces Profit, plus Profit itself, as percentages
     that always add up to exactly 100% -- Landowner and Tech (the always-on fixed
-    costs: website, tech tools, accounting, check-in supplies) come from the
-    automatic calculations; every OTHER category is whatever Ledger Expense
-    categories actually have entries that month (Supplies, Maintenance, Staff,
-    Other, or any custom category), so nothing is silently left out."""
+    costs: website, tech tools, accounting, and supplies as a rolling per-stay
+    average) come from the automatic calculations; every OTHER category is
+    whatever Ledger Expense categories actually have entries that month
+    (Maintenance, Staff, Other, or any custom category -- "supplies" itself is
+    excluded here since it's already folded into Tech), so nothing is silently
+    left out or double-counted."""
     fallback_idx = 0
     fallback_colors: dict[str, str] = {}
 
@@ -480,6 +502,8 @@ def cost_breakdown_by_month(db: Session, year: int, month: int, count: int = 6) 
 
         category_totals: dict[str, float] = {}
         for expense in db.query(Expense).filter(Expense.month == month_start).all():
+            if expense.category == "supplies":
+                continue  # already folded into the Tech share via fixed_costs
             label = expense.category.title()
             category_totals[label] = category_totals.get(label, 0.0) + expense.amount
 

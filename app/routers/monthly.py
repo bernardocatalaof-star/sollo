@@ -5,6 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.analytics import financial_summary, landowner_justification, landowner_statement
+from app.config import settings
 from app.database import get_db
 
 router = APIRouter()
@@ -44,5 +45,6 @@ def monthly_view(
             "prev_month": prev_month,
             "next_year": next_year,
             "next_month": next_month,
+            "supplies_window": settings.supplies_rolling_window_months,
         },
     )
