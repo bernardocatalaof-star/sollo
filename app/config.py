@@ -34,14 +34,23 @@ class Settings(BaseSettings):
     col_check_in: str = "start_on"
     col_check_out: str = "end_on"
     col_booked_at: str = "booked_at"  # date the reservation was made, for the Sales metric
-    col_total_price: str = "net_paid"
     col_booking_source: str = "sales_channel"
     col_status: str = "state"
 
+    # Revenue price columns (EUR) -- which one is authoritative depends on the
+    # booking's current status, since "how much actually counts" differs: a
+    # completed stay bills its full TOTAL, a still-pending one only what's
+    # actually been RECEIVED so far, and a cancelled one whatever was NET_PAID
+    # and kept (not refunded) -- see _resolve_total_price in sheets_sync.py.
+    col_price_total: str = "total"
+    col_price_received: str = "received"
+    col_price_net_paid: str = "net_paid"
+
     # Only rows whose status column matches one of these (case-insensitive) are
-    # synced as real, billable stays -- everything else (cancelled, pending, quote,
-    # etc.) is skipped entirely.
-    billable_states: str = "completed"
+    # synced into the database at all -- everything else (declined, quote, etc.)
+    # is skipped entirely. A "cancelled" row is still synced (for its NET_PAID
+    # revenue) but never bills the landowner -- see Booking.skip_landowner_fees.
+    billable_states: str = "completed,pending_payment,cancelled"
 
     @property
     def billable_states_set(self) -> set[str]:

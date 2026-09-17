@@ -7,9 +7,13 @@
   {{ booking.effective_cabin.name }}{% if booking.cabin_override_id %} <span class="badge" title="Synced value: {{ booking.cabin.name }}">corrected</span>{% endif %}
   · {{ booking.check_in }} → {{ booking.effective_check_out }}{% if booking.check_out_override %} <span class="badge" title="Synced value: {{ booking.check_out }}">corrected</span>{% endif %}
   · {{ booking.booking_source or "unknown source" }}
+  {% if booking.status.lower() == "cancelled" %}· <span class="badge">cancelled</span>
+  {% elif booking.status.lower() == "pending_payment" %}· <span class="badge holiday">pending payment</span>
+  {% endif %}
 </p>
 <p class="muted">Reference: {{ booking.external_id }} · Booked on: {{ booking.booked_at if booking.booked_at else "not set — check COL_BOOKED_AT / the sheet's raw value" }}</p>
 <p class="muted">Phone: {% if booking.phone %}<a href="tel:{{ booking.phone }}">{{ booking.phone }}</a>{% else %}not set — check COL_CUSTOMER_PHONE / the sheet's raw value{% endif %}</p>
+{% if booking.status.lower() == "cancelled" %}<p class="notice">Cancelled: no cleaning fee and no land fee owed (the cabin was never used) — its NET_PAID revenue still counts.</p>{% endif %}
 {% if booking.skip_cleaning_fee %}<p class="notice">No-show: no cleaning fee and no land fee owed (the cabin was never used) — revenue still counts.</p>{% endif %}
 {% if booking.override_note %}<p class="muted">Correction note: {{ booking.override_note }}</p>{% endif %}
 

@@ -103,10 +103,10 @@ def landowner_statement(db: Session, year: int, month: int) -> LandownerStatemen
     by_cabin: dict[str, CabinOwed] = {}
 
     # Land (overnight) fee: nights actually slept in THIS calendar month. A
-    # no-show marked skip_cleaning_fee never actually used the cabin, so it
-    # owes no land fee either -- only its revenue still counts (elsewhere).
+    # no-show or cancelled booking never actually used the cabin, so it owes
+    # no land fee either -- only its revenue still counts (elsewhere).
     for booking, nights_in_month in _nights_in_month(db, year, month):
-        if booking.skip_cleaning_fee:
+        if booking.skip_landowner_fees:
             continue
         cabin_name = booking.effective_cabin.name
         entry = by_cabin.setdefault(cabin_name, CabinOwed(cabin_name=cabin_name))
@@ -116,10 +116,10 @@ def landowner_statement(db: Session, year: int, month: int) -> LandownerStatemen
         )
 
     # Cleaning fee: one per stay, charged when the clean happens -- the calendar
-    # month containing check-out. A no-show marked skip_cleaning_fee never got
+    # month containing check-out. A no-show or cancelled booking never got
     # cleaned, so it doesn't count as a cleaning at all.
     for booking in bookings_closing_in_month(db, year, month):
-        if booking.skip_cleaning_fee:
+        if booking.skip_landowner_fees:
             continue
         fees = calculate_booking_fees(booking)
         cabin_name = booking.effective_cabin.name
@@ -164,7 +164,7 @@ def landowner_justification(db: Session, year: int, month: int) -> LandownerJust
     by_cabin: dict[str, CabinJustification] = {}
 
     for booking, nights_in_month in _nights_in_month(db, year, month):
-        if booking.skip_cleaning_fee:
+        if booking.skip_landowner_fees:
             continue
         cabin_name = booking.effective_cabin.name
         entry = by_cabin.setdefault(cabin_name, CabinJustification(cabin_name=cabin_name))
@@ -178,7 +178,7 @@ def landowner_justification(db: Session, year: int, month: int) -> LandownerJust
             d += timedelta(days=1)
 
     for booking in bookings_closing_in_month(db, year, month):
-        if booking.skip_cleaning_fee:
+        if booking.skip_landowner_fees:
             continue
         fees = calculate_booking_fees(booking)
         cabin_name = booking.effective_cabin.name

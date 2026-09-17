@@ -62,6 +62,16 @@ class Booking(Base):
     def nights(self) -> int:
         return max((self.effective_check_out - self.check_in).days, 0)
 
+    @property
+    def skip_landowner_fees(self) -> bool:
+        """True when neither the land fee nor the cleaning fee is owed to the
+        landowner -- either a manual no-show override, or the Sheet itself
+        reporting the booking as cancelled. Revenue still counts in both
+        cases (a no-show wasn't refunded; a cancellation may have kept a
+        NET_PAID amount) -- only the landowner's cut of an actual stay is
+        excluded, since the cabin was never really used."""
+        return bool(self.skip_cleaning_fee) or (self.status or "").strip().lower() == "cancelled"
+
 
 class StayFlag(Base):
     """An issue or occurrence noted against a stay (e.g. damage, complaint, late checkout)."""

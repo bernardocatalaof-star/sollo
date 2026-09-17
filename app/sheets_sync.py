@@ -245,6 +245,21 @@ def _row_is_billable(row: dict) -> bool:
     return status in settings.billable_states_set
 
 
+def _resolve_total_price(row: dict, status: str) -> float:
+    """Which price column counts as this booking's revenue depends on its
+    status: a completed stay bills its full TOTAL, a still-pending one only
+    what's actually been RECEIVED so far, and a cancelled one whatever was
+    NET_PAID and kept (not refunded)."""
+    status = status.strip().lower()
+    if status == "pending_payment":
+        column = settings.col_price_received
+    elif status == "cancelled":
+        column = settings.col_price_net_paid
+    else:
+        column = settings.col_price_total
+    return _parse_price(row.get(column))
+
+
 def _get_or_create_cabin(db: Session, name: str) -> Cabin:
     name = (name or "Unassigned").strip() or "Unassigned"
     cabin = db.query(Cabin).filter(Cabin.name == name).first()
@@ -286,6 +301,7 @@ def sync_bookings(db: Session) -> SyncResult:
             continue
 
         cabin = _get_or_create_cabin(db, _extract_cabin_name(row.get(settings.col_cabin, "")))
+        status = str(row.get(settings.col_status, "")).strip()
 
         existing = db.query(Booking).filter(Booking.external_id == external_id).first()
         values = dict(
@@ -295,9 +311,9 @@ def sync_bookings(db: Session) -> SyncResult:
             check_in=check_in,
             check_out=check_out,
             booked_at=_parse_optional_date(row.get(settings.col_booked_at)),
-            total_price=_parse_price(row.get(settings.col_total_price)),
+            total_price=_resolve_total_price(row, status),
             booking_source=str(row.get(settings.col_booking_source, "")).strip(),
-            status=str(row.get(settings.col_status, "")).strip(),
+            status=status,
             synced_at=datetime.utcnow(),
         )
 

@@ -42,3 +42,23 @@ def test_effective_check_out_uses_override_when_set(db_session):
     assert booking.effective_check_out == date(2026, 9, 3)
     assert booking.nights == 2
     assert booking.check_out == date(2026, 9, 5)  # the synced value is preserved
+
+
+def test_skip_landowner_fees_false_by_default():
+    booking = Booking(status="completed")
+    assert booking.skip_landowner_fees is False
+
+
+def test_skip_landowner_fees_true_for_manual_no_show_override():
+    booking = Booking(status="completed", skip_cleaning_fee=True)
+    assert booking.skip_landowner_fees is True
+
+
+def test_skip_landowner_fees_true_for_cancelled_status():
+    booking = Booking(status="cancelled")
+    assert booking.skip_landowner_fees is True
+
+
+def test_skip_landowner_fees_false_for_pending_payment_status():
+    booking = Booking(status="pending_payment")
+    assert booking.skip_landowner_fees is False

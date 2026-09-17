@@ -1,7 +1,13 @@
 from datetime import date
 
 from app.models import Booking, Cabin
-from app.sheets_sync import _extract_cabin_name, _parse_date, _parse_optional_date, sync_bookings
+from app.sheets_sync import (
+    _extract_cabin_name,
+    _parse_date,
+    _parse_optional_date,
+    _resolve_total_price,
+    sync_bookings,
+)
 
 
 def test_parse_date_handles_iso_format_without_swapping_month_and_day():
@@ -49,16 +55,32 @@ def test_extract_cabin_name_uses_last_entry_when_cabin_selection_changed():
     assert _extract_cabin_name("Olivia,Santiago (2 nights)") == "Santiago"
 
 
+def test_resolve_total_price_uses_total_column_for_completed():
+    row = {"total": "320.00", "received": "100.00", "net_paid": "0.00"}
+    assert _resolve_total_price(row, "completed") == 320.0
+
+
+def test_resolve_total_price_uses_received_column_for_pending_payment():
+    row = {"total": "320.00", "received": "100.00", "net_paid": "0.00"}
+    assert _resolve_total_price(row, "pending_payment") == 100.0
+
+
+def test_resolve_total_price_uses_net_paid_column_for_cancelled():
+    row = {"total": "320.00", "received": "50.00", "net_paid": "50.00"}
+    assert _resolve_total_price(row, "cancelled") == 50.0
+
+
 def test_sync_creates_bookings_and_cabins_from_local_csv(db_session, monkeypatch):
     monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
     monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", "data/sample_bookings.csv")
 
     result = sync_bookings(db_session)
 
-    assert result.created == 6
-    assert result.skipped == 1  # the cancelled row
+    # "cancelled" is synced too now (for its NET_PAID revenue), so all 7 rows land.
+    assert result.created == 7
+    assert result.skipped == 0
     assert db_session.query(Cabin).count() == 3
-    assert db_session.query(Booking).count() == 6
+    assert db_session.query(Booking).count() == 7
 
 
 def test_sync_is_idempotent_on_second_run(db_session, monkeypatch):
@@ -69,8 +91,8 @@ def test_sync_is_idempotent_on_second_run(db_session, monkeypatch):
     result = sync_bookings(db_session)
 
     assert result.created == 0
-    assert result.updated == 6
-    assert db_session.query(Booking).count() == 6
+    assert result.updated == 7
+    assert db_session.query(Booking).count() == 7
 
 
 def test_sync_stores_booked_at_from_sheet(db_session, monkeypatch):
@@ -122,10 +144,12 @@ def test_sync_leaves_booked_at_blank_when_column_missing_or_unparseable(db_sessi
 
 
 def test_sync_removes_booking_that_became_non_billable(db_session, monkeypatch, tmp_path):
+    # "declined" (unlike "cancelled") isn't in billable_states at all -- it
+    # should disappear from the DB entirely, not just lose its landowner fees.
     csv_path = tmp_path / "bookings.csv"
-    header = "reference,state,customer_first_name,customer_last_name,products,start_on,end_on,net_paid\n"
-    row_completed = "R-9,completed,Jane,Doe,Cabin 1,2026-08-01,2026-08-03,100.00\n"
-    row_cancelled = "R-9,cancelled,Jane,Doe,Cabin 1,2026-08-01,2026-08-03,0.00\n"
+    header = "reference,state,customer_first_name,customer_last_name,products,start_on,end_on,total,received,net_paid\n"
+    row_completed = "R-9,completed,Jane,Doe,Cabin 1,2026-08-01,2026-08-03,100.00,100.00,100.00\n"
+    row_declined = "R-9,declined,Jane,Doe,Cabin 1,2026-08-01,2026-08-03,0.00,0.00,0.00\n"
 
     csv_path.write_text(header + row_completed)
     monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
@@ -133,7 +157,7 @@ def test_sync_removes_booking_that_became_non_billable(db_session, monkeypatch, 
     sync_bookings(db_session)
     assert db_session.query(Booking).filter(Booking.external_id == "R-9").count() == 1
 
-    csv_path.write_text(header + row_cancelled)
+    csv_path.write_text(header + row_declined)
     result = sync_bookings(db_session)
 
     assert result.removed == 1
@@ -212,3 +236,43 @@ def test_holiday_stay_gets_holiday_cleaning_rate_after_sync(db_session, monkeypa
     fees = calculate_booking_fees(booking)
     assert fees.is_holiday_cleaning is True
     assert fees.cleaning_fee == 40.0
+
+
+def test_sync_syncs_a_cancelled_booking_with_net_paid_revenue_and_no_landowner_fees(db_session, monkeypatch):
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", "data/sample_bookings.csv")
+    sync_bookings(db_session)
+
+    from app.fees import calculate_booking_fees
+
+    # R-1007 in the sample CSV is "cancelled": total=150.00, received=0.00, net_paid=0.00.
+    booking = db_session.query(Booking).filter(Booking.external_id == "R-1007").first()
+    assert booking is not None
+    assert booking.total_price == 0.0  # NET_PAID, not the original TOTAL
+    assert booking.skip_landowner_fees is True
+
+    fees = calculate_booking_fees(booking)
+    assert fees.overnight_fee == 0.0
+    assert fees.cleaning_fee == 0.0
+
+
+def test_sync_syncs_a_pending_payment_booking_with_received_revenue_and_normal_fees(db_session, monkeypatch, tmp_path):
+    csv_path = tmp_path / "bookings.csv"
+    header = "reference,state,customer_first_name,customer_last_name,products,start_on,end_on,total,received,net_paid\n"
+    row = "R-20,pending_payment,Ana,Costa,Cabin 1,2026-08-01,2026-08-04,300.00,150.00,0.00\n"
+    csv_path.write_text(header + row)
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", str(csv_path))
+
+    sync_bookings(db_session)
+
+    from app.fees import calculate_booking_fees
+
+    booking = db_session.query(Booking).filter(Booking.external_id == "R-20").first()
+    assert booking is not None
+    assert booking.total_price == 150.0  # RECEIVED, not the full TOTAL
+    assert booking.skip_landowner_fees is False  # still a normal, billable stay
+
+    fees = calculate_booking_fees(booking)
+    assert fees.nights == 3
+    assert fees.overnight_fee == round(3 * 19.8, 2)
