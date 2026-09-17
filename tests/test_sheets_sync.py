@@ -55,6 +55,19 @@ def test_extract_cabin_name_uses_last_entry_when_cabin_selection_changed():
     assert _extract_cabin_name("Olivia,Santiago (2 nights)") == "Santiago"
 
 
+def test_extract_cabin_name_normalizes_a_deprecated_rate_plan_suffix():
+    # A deprecated Sheet product ("Olivia weekend") used to create a brand new
+    # phantom "Olivia weekend" cabin instead of resolving to the real Olivia.
+    assert _extract_cabin_name("Olivia weekend (NOT IN USE!)") == "Olivia"
+    assert _extract_cabin_name("Santiago weekend") == "Santiago"
+
+
+def test_extract_cabin_name_leaves_unrelated_names_untouched():
+    # Only known real cabin names get this treatment -- anything else (a test
+    # fixture, or a genuinely different cabin added later) passes through as-is.
+    assert _extract_cabin_name("Cabin 1 weekend") == "Cabin 1 weekend"
+
+
 def test_resolve_total_price_uses_total_column_for_completed():
     row = {"total": "320.00", "received": "100.00", "net_paid": "0.00"}
     assert _resolve_total_price(row, "completed") == 320.0

@@ -113,3 +113,29 @@ def run_data_fixes(engine: Engine) -> None:
                     )
                 )
                 conn.execute(text("INSERT INTO settings (key, value) VALUES ('data_fix_9mw_6krd_cabin', '1')"))
+
+    if "bookings" in table_names and "cabins" in table_names:
+        with engine.begin() as conn:
+            # A deprecated Sheet product, "Olivia weekend (NOT IN USE!)", used to
+            # slip past the cabin-name parser untouched and create a brand new
+            # phantom "Olivia weekend" cabin -- fixed in the parser itself, but
+            # any such cabin already created needs its bookings folded back into
+            # the real "Olivia" cabin. This is naturally idempotent: once the
+            # phantom cabin is deleted below, the WHERE clauses match nothing.
+            conn.execute(
+                text(
+                    "UPDATE bookings SET cabin_id = (SELECT id FROM cabins WHERE lower(name) = 'olivia') "
+                    "WHERE cabin_id = (SELECT id FROM cabins WHERE lower(name) = 'olivia weekend') "
+                    "AND EXISTS (SELECT 1 FROM cabins WHERE lower(name) = 'olivia weekend') "
+                    "AND EXISTS (SELECT 1 FROM cabins WHERE lower(name) = 'olivia')"
+                )
+            )
+            conn.execute(
+                text(
+                    "UPDATE bookings SET cabin_override_id = (SELECT id FROM cabins WHERE lower(name) = 'olivia') "
+                    "WHERE cabin_override_id = (SELECT id FROM cabins WHERE lower(name) = 'olivia weekend') "
+                    "AND EXISTS (SELECT 1 FROM cabins WHERE lower(name) = 'olivia weekend') "
+                    "AND EXISTS (SELECT 1 FROM cabins WHERE lower(name) = 'olivia')"
+                )
+            )
+            conn.execute(text("DELETE FROM cabins WHERE lower(name) = 'olivia weekend'"))

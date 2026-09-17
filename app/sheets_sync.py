@@ -204,6 +204,16 @@ def _resolve_guest_name(row: dict) -> str:
     return " ".join(part for part in (first, last) if part)
 
 
+# Real cabin names -- any product string that starts with one of these
+# (e.g. a deprecated rate-plan variant like "Olivia weekend (NOT IN USE!)")
+# is normalized down to just the cabin name, rather than creating a brand
+# new phantom cabin for what is really the same physical unit. This matters
+# beyond cosmetics: every Cabin row, even an unused one, dilutes the
+# Occupancy rate's nights_available denominator (days_in_month x cabin
+# count) for every month.
+_KNOWN_CABIN_NAMES = ("Olivia", "Santiago")
+
+
 def _extract_cabin_name(raw) -> str:
     """Pulls a cabin/unit name out of a `products`/`variants`-style column.
 
@@ -237,6 +247,11 @@ def _extract_cabin_name(raw) -> str:
 
     text = re.sub(r"\s*\([^()]*\)\s*$", "", text).strip()
     text = re.sub(r"\s*[\(\[]?\s*x\s*\d+\s*[\)\]]?\s*$", "", text, flags=re.IGNORECASE).strip()
+
+    for known in _KNOWN_CABIN_NAMES:
+        if text.lower() == known.lower() or text.lower().startswith(known.lower() + " "):
+            return known
+
     return text or "Unassigned"
 
 

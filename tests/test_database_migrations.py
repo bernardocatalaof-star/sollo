@@ -138,3 +138,63 @@ def test_run_data_fixes_does_not_clobber_a_manually_cleared_9mw_6krd_override(db
 
     booking = db_session.query(Booking).filter(Booking.external_id == "9MW-6KRD").first()
     assert booking.cabin_override_id is None
+
+
+def test_run_data_fixes_merges_phantom_olivia_weekend_cabin_into_olivia(db_session):
+    olivia = Cabin(name="Olivia")
+    olivia_weekend = Cabin(name="Olivia weekend")
+    db_session.add_all([olivia, olivia_weekend])
+    db_session.flush()
+    booking = Booking(
+        external_id="R-1",
+        cabin_id=olivia_weekend.id,
+        check_in=date(2026, 9, 1),
+        check_out=date(2026, 9, 3),
+        total_price=100.0,
+    )
+    db_session.add(booking)
+    db_session.commit()
+
+    run_data_fixes(db_session.get_bind())
+    db_session.expire_all()
+
+    booking = db_session.query(Booking).filter(Booking.external_id == "R-1").first()
+    assert booking.cabin_id == olivia.id
+    assert db_session.query(Cabin).filter(Cabin.name == "Olivia weekend").count() == 0
+    assert db_session.query(Cabin).count() == 1  # the phantom cabin is gone, not just emptied
+
+
+def test_run_data_fixes_merges_phantom_olivia_weekend_cabin_override_too(db_session):
+    santiago = Cabin(name="Santiago")
+    olivia = Cabin(name="Olivia")
+    olivia_weekend = Cabin(name="Olivia weekend")
+    db_session.add_all([santiago, olivia, olivia_weekend])
+    db_session.flush()
+    booking = Booking(
+        external_id="R-2",
+        cabin_id=santiago.id,
+        cabin_override_id=olivia_weekend.id,
+        check_in=date(2026, 9, 1),
+        check_out=date(2026, 9, 3),
+        total_price=100.0,
+    )
+    db_session.add(booking)
+    db_session.commit()
+
+    run_data_fixes(db_session.get_bind())
+    db_session.expire_all()
+
+    booking = db_session.query(Booking).filter(Booking.external_id == "R-2").first()
+    assert booking.cabin_override_id == olivia.id
+    assert db_session.query(Cabin).filter(Cabin.name == "Olivia weekend").count() == 0
+
+
+def test_run_data_fixes_is_a_no_op_when_no_phantom_cabin_exists(db_session):
+    olivia = Cabin(name="Olivia")
+    db_session.add(olivia)
+    db_session.commit()
+
+    run_data_fixes(db_session.get_bind())  # must not raise or delete the real Olivia
+    db_session.expire_all()
+
+    assert db_session.query(Cabin).filter(Cabin.name == "Olivia").count() == 1
