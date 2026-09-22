@@ -15,6 +15,7 @@ import hashlib
 import io
 import json
 import re
+import secrets
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
@@ -279,7 +280,7 @@ def _get_or_create_cabin(db: Session, name: str) -> Cabin:
     name = (name or "Unassigned").strip() or "Unassigned"
     cabin = db.query(Cabin).filter(Cabin.name == name).first()
     if cabin is None:
-        cabin = Cabin(name=name)
+        cabin = Cabin(name=name, guide_token=secrets.token_urlsafe(9))
         db.add(cabin)
         db.flush()
     return cabin

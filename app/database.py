@@ -1,4 +1,5 @@
 import os
+import secrets
 
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
@@ -58,6 +59,7 @@ _COLUMN_MIGRATIONS = [
     ("bookings", "check_out_override", "DATE"),
     ("bookings", "skip_cleaning_fee", "BOOLEAN DEFAULT FALSE"),
     ("bookings", "override_note", "VARCHAR(300) DEFAULT ''"),
+    ("cabins", "guide_token", "VARCHAR(32) DEFAULT ''"),
 ]
 
 
@@ -70,6 +72,24 @@ def run_schema_migrations(engine: Engine) -> None:
         if column not in existing:
             with engine.begin() as conn:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+
+
+def backfill_cabin_guide_tokens(engine: Engine) -> None:
+    """Every cabin needs a guide_token to have a working /guide link -- assigns
+    one to any cabin that doesn't have it yet (a fresh column from the schema
+    migration above, or a cabin created before this feature existed). Each
+    token is generated individually since a plain ALTER TABLE default can't
+    produce a distinct random value per row."""
+    inspector = inspect(engine)
+    if "cabins" not in inspector.get_table_names():
+        return
+    with engine.begin() as conn:
+        rows = conn.execute(text("SELECT id FROM cabins WHERE guide_token IS NULL OR guide_token = ''")).fetchall()
+        for (cabin_id,) in rows:
+            conn.execute(
+                text("UPDATE cabins SET guide_token = :token WHERE id = :id"),
+                {"token": secrets.token_urlsafe(9), "id": cabin_id},
+            )
 
 
 def run_data_fixes(engine: Engine) -> None:

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Guidebook — {{ cabin.name }} — Sollo{% endblock %}
+{% block content %}
+<h1>Guest Guidebook</h1>
+<p class="muted">Edit the sections below and they update instantly on the public page you share with your guests. No re-sending links needed — the same link always shows the latest content.</p>
+
+{% if cabins|length > 1 %}
+<form class="inline">
+  <label>Cabin
+    <select onchange="location.href = '/guidebook/' + this.value">
+      {% for c in cabins %}
+      <option value="{{ c.id }}" {{ "selected" if c.id == cabin.id else "" }}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+{% endif %}
+
+<div class="notice">
+  Guest link for <strong>{{ cabin.name }}</strong>:
+  <a id="guide-link" href="{{ request.base_url }}guide/{{ cabin.guide_token }}" target="_blank">{{ request.base_url }}guide/{{ cabin.guide_token }}</a>
+  <button type="button" class="secondary" onclick="navigator.clipboard.writeText(document.getElementById('guide-link').href)">Copy link</button>
+</div>
+
+<div class="guide-sections">
+  {% for section in sections %}
+  <details class="guide-editor" {{ "open" if loop.first else "" }}>
+    <summary>{{ section.icon }} {{ section.title or "Untitled section" }}</summary>
+    <form method="post" action="/guidebook/sections/{{ section.id }}" class="guide-editor-form">
+      <div class="guide-editor-row">
+        <input type="text" name="icon" value="{{ section.icon }}" maxlength="10" placeholder="Icon" style="width:4rem;" />
+        <input type="text" name="title" value="{{ section.title }}" placeholder="Section title" style="flex:1;" required />
+      </div>
+      <textarea name="body" rows="6" placeholder="Write this section's content. Blank line = new paragraph, lines starting with &quot;- &quot; = a bullet list, **bold**, and links are auto-detected.">{{ section.body }}</textarea>
+      <div class="guide-editor-row">
+        <button type="submit">Save</button>
+        <form method="post" action="/guidebook/sections/{{ section.id }}/move" style="margin:0;">
+          <input type="hidden" name="direction" value="up" />
+          <button type="submit" class="secondary" {{ "disabled" if loop.first else "" }}>&uarr; Move up</button>
+        </form>
+        <form method="post" action="/guidebook/sections/{{ section.id }}/move" style="margin:0;">
+          <input type="hidden" name="direction" value="down" />
+          <button type="submit" class="secondary" {{ "disabled" if loop.last else "" }}>&darr; Move down</button>
+        </form>
+        <form method="post" action="/guidebook/sections/{{ section.id }}/delete" style="margin:0;" onsubmit="return confirm('Delete this section?')">
+          <button type="submit" class="danger">Delete</button>
+        </form>
+      </div>
+    </form>
+  </details>
+  {% else %}
+  <p class="muted">No sections yet.</p>
+  {% endfor %}
+</div>
+
+<h2>Add a section</h2>
+<form method="post" action="/guidebook/{{ cabin.id }}/sections" class="guide-editor-form">
+  <div class="guide-editor-row">
+    <input type="text" name="icon" maxlength="10" placeholder="Icon (optional)" style="width:4rem;" />
+    <input type="text" name="title" placeholder="Section title" style="flex:1;" required />
+  </div>
+  <textarea name="body" rows="4" placeholder="Content (optional — you can fill it in later)"></textarea>
+  <button type="submit">Add section</button>
+</form>
+{% endblock %}

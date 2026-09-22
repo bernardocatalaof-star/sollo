@@ -338,3 +338,23 @@ button.danger { background: var(--bad); }
   .cal-head { font-size: 0.7rem; padding: 0.35rem; }
   .cal-daynum-cell { font-size: 0.72rem; }
 }
+
+.guide-sections { display: flex; flex-direction: column; gap: 0.75rem; margin: 1rem 0 2rem; }
+
+.guide-editor {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+}
+
+.guide-editor summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.25rem 0;
+}
+
+.guide-editor-form { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
+.guide-editor-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.guide-editor-form textarea { width: 100%; font-family: inherit; resize: vertical; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }

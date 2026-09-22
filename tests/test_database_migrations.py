@@ -2,7 +2,7 @@ from datetime import date
 
 from sqlalchemy import create_engine, inspect, text
 
-from app.database import run_data_fixes, run_schema_migrations
+from app.database import backfill_cabin_guide_tokens, run_data_fixes, run_schema_migrations
 from app.models import Booking, Cabin, Expense
 
 
@@ -39,6 +39,19 @@ def test_run_schema_migrations_adds_missing_column_without_touching_existing_row
     assert row == ("R-1", 100.0)
 
 
+def test_run_schema_migrations_adds_guide_token_to_cabins():
+    engine = create_engine("sqlite:///:memory:")
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE cabins (id INTEGER PRIMARY KEY, name VARCHAR(120))"))
+        conn.execute(text("INSERT INTO cabins (id, name) VALUES (1, 'Olivia')"))
+
+    run_schema_migrations(engine)
+
+    inspector = inspect(engine)
+    columns = {c["name"] for c in inspector.get_columns("cabins")}
+    assert "guide_token" in columns
+
+
 def test_run_schema_migrations_is_a_no_op_on_a_fresh_database(db_session):
     # db_session's engine already has booked_at via create_all() -- re-running the
     # migration must not error or duplicate the column.
@@ -48,6 +61,27 @@ def test_run_schema_migrations_is_a_no_op_on_a_fresh_database(db_session):
 def test_run_schema_migrations_skips_missing_tables():
     engine = create_engine("sqlite:///:memory:")
     run_schema_migrations(engine)  # no "bookings" table at all -- must not raise
+
+
+def test_backfill_cabin_guide_tokens_assigns_distinct_tokens(db_session):
+    olivia = Cabin(name="Olivia")
+    santiago = Cabin(name="Santiago", guide_token="already-set")
+    db_session.add_all([olivia, santiago])
+    db_session.commit()
+
+    backfill_cabin_guide_tokens(db_session.get_bind())
+    db_session.expire_all()
+
+    olivia = db_session.query(Cabin).filter(Cabin.name == "Olivia").first()
+    santiago = db_session.query(Cabin).filter(Cabin.name == "Santiago").first()
+    assert olivia.guide_token  # got a fresh token
+    assert santiago.guide_token == "already-set"  # untouched
+    assert olivia.guide_token != santiago.guide_token
+
+
+def test_backfill_cabin_guide_tokens_skips_missing_table():
+    engine = create_engine("sqlite:///:memory:")
+    backfill_cabin_guide_tokens(engine)  # no "cabins" table at all -- must not raise
 
 
 def test_run_data_fixes_recategorizes_madalena_expenses_as_staff(db_session):

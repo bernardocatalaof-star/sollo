@@ -34,6 +34,16 @@ summary.
   a Revenue breakdown showing every cost category as a % of Revenue plus what's
   left as profit (always sums to exactly 100%, last 6 months), and per-cabin
   occupancy (last 3 months through the next 3).
+- **Guest guidebook** (`/guidebook`) — a digital guidebook per cabin, editable
+  from this app and published at a shareable public link
+  (`/guide/<unguessable-token>`) with no login required, so you can send it to
+  anyone who books. Comes pre-seeded with 9 sections (Most important stuff, How
+  to get there, Door codes, Cabin features, How to use the cabin, Fire danger
+  rating, Recipes & entertainment, Safety info, Important contacts) — edit,
+  reorder, add, or delete sections freely. Each section's text supports blank
+  lines for paragraphs, `- ` for bullet lists, `**bold**`, and auto-linked
+  URLs. Edits go live on the same link immediately, so you only ever send it
+  once.
 
 ## Setup
 
