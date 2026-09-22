@@ -34,6 +34,16 @@ def test_render_body_escapes_html_and_applies_bold():
     assert "<strong>safe</strong>" in str(html)
 
 
+def test_render_body_renders_underline():
+    html = render_body("This is __important__")
+    assert str(html) == "<p>This is <u>important</u></p>"
+
+
+def test_render_body_renders_heading_line():
+    html = render_body("# Wifi\nPassword: 12345")
+    assert str(html) == "<h3>Wifi</h3><p>Password: 12345</p>"
+
+
 def test_render_body_autolinks_urls():
     html = render_body("Wifi info at https://example.com/wifi for details")
     assert '<a href="https://example.com/wifi" target="_blank" rel="noopener">https://example.com/wifi</a>' in str(

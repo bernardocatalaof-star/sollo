@@ -356,5 +356,25 @@ button.danger { background: var(--bad); }
 
 .guide-editor-form { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
 .guide-editor-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-.guide-editor-form textarea { width: 100%; font-family: inherit; resize: vertical; }
+.guide-editor-form textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.95rem;
+  resize: vertical;
+  min-height: 220px;
+}
 button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.guide-toolbar { display: flex; gap: 0.4rem; }
+.guide-toolbar button {
+  padding: 0.35rem 0.6rem;
+  min-width: 2.2rem;
+  font-size: 0.85rem;
+}
+.guide-toolbar button u { text-decoration: underline; }
+
+.container.guide-admin-wide { max-width: 1500px; }
+
+@media (min-width: 900px) {
+  .guide-editor-form textarea { min-height: 65vh; }
+}

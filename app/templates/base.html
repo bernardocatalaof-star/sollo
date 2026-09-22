@@ -15,7 +15,7 @@
     <a href="/monthly">Monthly Close-out</a>
     <a href="/guidebook">Guidebook</a>
   </nav>
-  <main class="container">
+  <main class="container {% block container_class %}{% endblock %}">
     {% block content %}{% endblock %}
   </main>
 </body>

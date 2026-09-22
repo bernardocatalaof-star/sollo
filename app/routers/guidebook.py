@@ -33,25 +33,49 @@ _URL_RE = re.compile(r"(https?://[^\s<]+)")
 def _inline(line: str) -> str:
     s = str(escape(line))
     s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
+    s = re.sub(r"__(.+?)__", r"<u>\1</u>", s)
     s = _URL_RE.sub(lambda m: f'<a href="{m.group(1)}" target="_blank" rel="noopener">{m.group(1)}</a>', s)
     return s
 
 
 def render_body(text: str) -> Markup:
     """Turns a section's plain-text body into safe HTML: blank lines start a
-    new paragraph, lines starting with "- " become a bullet list, **bold**
-    and bare URLs are recognized. Everything else is escaped as plain text."""
+    new paragraph, a line starting with "# " becomes a larger heading, lines
+    starting with "- " become a bullet list, and **bold**, __underline__ and
+    bare URLs are recognized inline. Everything else is escaped as plain text."""
     if not text or not text.strip():
         return Markup("")
-    blocks = []
-    for block in re.split(r"\n\s*\n", text.strip()):
-        lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
-        if lines and all(ln.startswith(("- ", "* ")) for ln in lines):
-            items = "".join(f"<li>{_inline(ln[2:])}</li>" for ln in lines)
-            blocks.append(f"<ul>{items}</ul>")
+    lines = text.strip().splitlines()
+    output: list[str] = []
+    paragraph: list[str] = []
+
+    def flush_paragraph() -> None:
+        if paragraph:
+            output.append("<p>" + "<br>".join(_inline(ln) for ln in paragraph) + "</p>")
+            paragraph.clear()
+
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            flush_paragraph()
+            i += 1
+        elif line.startswith("# "):
+            flush_paragraph()
+            output.append(f"<h3>{_inline(line[2:])}</h3>")
+            i += 1
+        elif line.startswith(("- ", "* ")):
+            flush_paragraph()
+            items = []
+            while i < len(lines) and lines[i].strip().startswith(("- ", "* ")):
+                items.append(f"<li>{_inline(lines[i].strip()[2:])}</li>")
+                i += 1
+            output.append(f"<ul>{''.join(items)}</ul>")
         else:
-            blocks.append("<p>" + "<br>".join(_inline(ln) for ln in lines) + "</p>")
-    return Markup("".join(blocks))
+            paragraph.append(line)
+            i += 1
+    flush_paragraph()
+    return Markup("".join(output))
 
 
 templates.env.filters["render_body"] = render_body
