@@ -338,3 +338,62 @@ button.danger { background: var(--bad); }
   .cal-head { font-size: 0.7rem; padding: 0.35rem; }
   .cal-daynum-cell { font-size: 0.72rem; }
 }
+
+.guide-sections { display: flex; flex-direction: column; gap: 0.75rem; margin: 1rem 0 2rem; }
+
+.guide-editor {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+}
+
+.guide-editor summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.25rem 0;
+}
+
+.guide-editor-form { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
+.guide-editor-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.guide-editor-form textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.95rem;
+  resize: vertical;
+  min-height: 220px;
+}
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.guide-toolbar { display: flex; gap: 0.4rem; }
+.guide-toolbar button {
+  padding: 0.35rem 0.6rem;
+  min-width: 2.2rem;
+  font-size: 0.85rem;
+}
+.guide-toolbar button u { text-decoration: underline; }
+
+.container.guide-admin-wide {
+  max-width: 1500px;
+  /* Nordlig is a paid font not bundled here -- this stack picks it up
+     automatically once its @font-face is added, and falls back to
+     Helvetica (then the platform's default sans-serif) until then. */
+  font-family: Helvetica, Arial, sans-serif;
+}
+.guide-admin-wide h1,
+.guide-admin-wide h2,
+.guide-admin-wide summary {
+  font-family: "Nordlig", Helvetica, Arial, sans-serif;
+  /* Only the Regular weight of Nordlig is installed -- pinning to 400 avoids
+     a browser-synthesized (and often ugly) fake bold on a display serif. */
+  font-weight: 400;
+}
+.guide-admin-wide input,
+.guide-admin-wide select,
+.guide-admin-wide textarea {
+  font-family: inherit;
+}
+
+@media (min-width: 900px) {
+  .guide-editor-form textarea { min-height: 65vh; }
+}

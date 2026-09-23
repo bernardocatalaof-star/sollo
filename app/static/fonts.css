@@ -1,0 +1,9 @@
+/* Only fetched by the browser on a page that actually renders text in this
+   family (e.g. the guidebook's headings) -- harmless to link everywhere. */
+@font-face {
+  font-family: "Nordlig";
+  src: url("/static/fonts/Nordlig-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

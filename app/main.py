@@ -16,12 +16,20 @@ from app.analytics import (
     sales_in_month,
 )
 from app.config import settings
-from app.database import Base, SessionLocal, engine, run_data_fixes, run_schema_migrations
-from app.routers import auth, bookings, calendar, expenses, extra_revenue, ledger, monthly
+from app.database import (
+    Base,
+    SessionLocal,
+    backfill_cabin_guide_tokens,
+    engine,
+    run_data_fixes,
+    run_schema_migrations,
+)
+from app.routers import auth, bookings, calendar, expenses, extra_revenue, guidebook, ledger, monthly
 from app.sheets_sync import oauth_is_connected
 
 Base.metadata.create_all(bind=engine)
 run_schema_migrations(engine)
+backfill_cabin_guide_tokens(engine)
 run_data_fixes(engine)
 
 app = FastAPI(title="Sollo — Guest & Operations Management")
@@ -33,6 +41,7 @@ app.include_router(bookings.router)
 app.include_router(calendar.router)
 app.include_router(expenses.router)
 app.include_router(extra_revenue.router)
+app.include_router(guidebook.router)
 app.include_router(ledger.router)
 app.include_router(monthly.router)
 

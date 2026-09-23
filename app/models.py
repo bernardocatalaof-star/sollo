@@ -11,8 +11,15 @@ class Cabin(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    # Unguessable token used in the public guest guidebook URL (/guide/<token>)
+    # so the link can be shared with guests without exposing the cabin's DB id
+    # or letting them enumerate other cabins' guidebooks.
+    guide_token: Mapped[str] = mapped_column(String(32), default="")
 
     bookings: Mapped[list["Booking"]] = relationship(back_populates="cabin", foreign_keys="Booking.cabin_id")
+    guidebook_sections: Mapped[list["GuidebookSection"]] = relationship(
+        back_populates="cabin", cascade="all, delete-orphan", order_by="GuidebookSection.position"
+    )
 
 
 class Booking(Base):
@@ -110,6 +117,24 @@ class Expense(Base):
     description: Mapped[str] = mapped_column(String(300), default="")
     amount: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class GuidebookSection(Base):
+    """One section of a cabin's guest-facing digital guidebook (e.g. "Door
+    codes", "How to get there") -- shown in order on the public /guide page."""
+
+    __tablename__ = "guidebook_sections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cabin_id: Mapped[int] = mapped_column(ForeignKey("cabins.id"))
+    cabin: Mapped["Cabin"] = relationship(back_populates="guidebook_sections", foreign_keys=[cabin_id])
+
+    title: Mapped[str] = mapped_column(String(120), default="")
+    icon: Mapped[str] = mapped_column(String(10), default="")
+    body: Mapped[str] = mapped_column(Text, default="")
+    position: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class ExtraRevenue(Base):

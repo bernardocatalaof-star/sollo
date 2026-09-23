@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}Sollo{% endblock %}</title>
+  <link rel="stylesheet" href="/static/fonts.css" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -13,8 +14,9 @@
     <a href="/calendar">Calendar</a>
     <a href="/ledger">Ledger</a>
     <a href="/monthly">Monthly Close-out</a>
+    <a href="/guidebook">Guidebook</a>
   </nav>
-  <main class="container">
+  <main class="container {% block container_class %}{% endblock %}">
     {% block content %}{% endblock %}
   </main>
 </body>

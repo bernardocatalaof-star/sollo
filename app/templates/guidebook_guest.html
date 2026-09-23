@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ cabin.name }} — Guest Guide</title>
+  <link rel="stylesheet" href="/static/fonts.css" />
+  <link rel="stylesheet" href="/static/guide.css" />
+</head>
+<body class="guide-body">
+  <div class="guide-hero">
+    <h1>{{ cabin.name }}</h1>
+    <p>Everything you need for your stay</p>
+  </div>
+
+  {% if sections %}
+  <nav class="guide-nav">
+    {% for section in sections %}
+    <a href="#section-{{ section.id }}">{{ section.icon }} {{ section.title }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+
+  <main class="guide-main">
+    {% for section in sections %}
+    <section class="guide-section" id="section-{{ section.id }}">
+      <h2>{{ section.icon }} {{ section.title }}</h2>
+      {% set rendered = section.body|render_body %}
+      {% if rendered %}{{ rendered }}{% else %}<p class="empty">No information added yet.</p>{% endif %}
+    </section>
+    {% else %}
+    <p class="empty">This guidebook doesn't have any sections yet.</p>
+    {% endfor %}
+  </main>
+
+  <div class="guide-footer">Have a great stay!</div>
+</body>
+</html>

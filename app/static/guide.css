@@ -1,0 +1,96 @@
+:root {
+  --guide-bg: #faf7f2;
+  --guide-panel: #ffffff;
+  --guide-border: #e8e1d6;
+  --guide-text: #2b2620;
+  --guide-muted: #7a7266;
+  --guide-accent: #b5713b;
+  /* Nordlig is a paid font not bundled here -- this stack picks it up
+     automatically once its @font-face is added, and falls back to
+     Helvetica (then the platform's default sans-serif) until then. */
+  --guide-font-heading: "Nordlig", Helvetica, Arial, sans-serif;
+  --guide-font-body: Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body.guide-body {
+  margin: 0;
+  background: var(--guide-bg);
+  color: var(--guide-text);
+  font-family: var(--guide-font-body);
+  line-height: 1.5;
+}
+
+.guide-hero {
+  padding: 2.5rem 1.25rem 1.5rem;
+  text-align: center;
+}
+
+.guide-hero h1 { margin: 0 0 0.35rem; font-size: 1.8rem; font-family: var(--guide-font-heading); font-weight: 400; }
+.guide-hero p { margin: 0; color: var(--guide-muted); }
+
+.guide-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.75rem 1rem;
+  background: rgba(250, 247, 242, 0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--guide-border);
+}
+
+.guide-nav a {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--guide-border);
+  background: var(--guide-panel);
+  color: var(--guide-text);
+  text-decoration: none;
+  font-family: var(--guide-font-heading);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.guide-nav a:hover { border-color: var(--guide-accent); color: var(--guide-accent); }
+
+.guide-main { max-width: 680px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+.guide-section {
+  background: var(--guide-panel);
+  border: 1px solid var(--guide-border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  scroll-margin-top: 4.5rem;
+}
+
+.guide-section h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.2rem;
+  font-family: var(--guide-font-heading);
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.guide-section p { margin: 0 0 0.75rem; }
+.guide-section p:last-child { margin-bottom: 0; }
+.guide-section ul { margin: 0 0 0.75rem; padding-left: 1.25rem; }
+.guide-section ul:last-child { margin-bottom: 0; }
+.guide-section a { color: var(--guide-accent); }
+.guide-section .empty { color: var(--guide-muted); font-style: italic; }
+.guide-section h3 { margin: 0 0 0.6rem; font-size: 1.05rem; font-family: var(--guide-font-heading); font-weight: 400; }
+.guide-section u { text-decoration: underline; text-decoration-color: var(--guide-accent); }
+
+.guide-footer { text-align: center; color: var(--guide-muted); font-size: 0.8rem; padding: 1rem; }
+
+.guide-notfound { max-width: 480px; margin: 4rem auto; text-align: center; padding: 0 1.25rem; }

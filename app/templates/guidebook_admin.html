@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Guidebook — {{ cabin.name }} — Sollo{% endblock %}
+{% block container_class %}guide-admin-wide{% endblock %}
+{% block content %}
+<h1>Guest Guidebook</h1>
+<p class="muted">Edit the sections below and they update instantly on the public page you share with your guests. No re-sending links needed — the same link always shows the latest content.</p>
+
+{% if cabins|length > 1 %}
+<form class="inline">
+  <label>Cabin
+    <select onchange="location.href = '/guidebook/' + this.value">
+      {% for c in cabins %}
+      <option value="{{ c.id }}" {{ "selected" if c.id == cabin.id else "" }}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+{% endif %}
+
+<div class="notice">
+  Guest link for <strong>{{ cabin.name }}</strong>:
+  <a id="guide-link" href="{{ request.base_url }}guide/{{ cabin.guide_token }}" target="_blank">{{ request.base_url }}guide/{{ cabin.guide_token }}</a>
+  <button type="button" class="secondary" onclick="navigator.clipboard.writeText(document.getElementById('guide-link').href)">Copy link</button>
+</div>
+
+<div class="guide-sections">
+  {% for section in sections %}
+  <details class="guide-editor" {{ "open" if loop.first else "" }}>
+    <summary>{{ section.icon }} {{ section.title or "Untitled section" }}</summary>
+    <form method="post" action="/guidebook/sections/{{ section.id }}" class="guide-editor-form">
+      <div class="guide-editor-row">
+        <input type="text" name="icon" value="{{ section.icon }}" maxlength="10" placeholder="Icon" style="width:4rem;" />
+        <input type="text" name="title" value="{{ section.title }}" placeholder="Section title" style="flex:1;" required />
+      </div>
+      <div class="guide-toolbar">
+        <button type="button" class="secondary" title="Negrito" onclick="guideWrap(this, '**')"><strong>B</strong></button>
+        <button type="button" class="secondary" title="Sublinhado" onclick="guideWrap(this, '__')"><u>U</u></button>
+        <button type="button" class="secondary" title="Texto maior (título)" onclick="guideToggleHeading(this)">A<sup>+</sup></button>
+      </div>
+      <textarea name="body" rows="14" placeholder="Write this section's content. Blank line = new paragraph, &quot;# &quot; at the start of a line = a bigger heading, lines starting with &quot;- &quot; = a bullet list, **bold**, __underline__, and links are auto-detected.">{{ section.body }}</textarea>
+      <div class="guide-editor-row">
+        <button type="submit">Save</button>
+        <form method="post" action="/guidebook/sections/{{ section.id }}/move" style="margin:0;">
+          <input type="hidden" name="direction" value="up" />
+          <button type="submit" class="secondary" {{ "disabled" if loop.first else "" }}>&uarr; Move up</button>
+        </form>
+        <form method="post" action="/guidebook/sections/{{ section.id }}/move" style="margin:0;">
+          <input type="hidden" name="direction" value="down" />
+          <button type="submit" class="secondary" {{ "disabled" if loop.last else "" }}>&darr; Move down</button>
+        </form>
+        <form method="post" action="/guidebook/sections/{{ section.id }}/delete" style="margin:0;" onsubmit="return confirm('Delete this section?')">
+          <button type="submit" class="danger">Delete</button>
+        </form>
+      </div>
+    </form>
+  </details>
+  {% else %}
+  <p class="muted">No sections yet.</p>
+  {% endfor %}
+</div>
+
+<h2>Add a section</h2>
+<form method="post" action="/guidebook/{{ cabin.id }}/sections" class="guide-editor-form">
+  <div class="guide-editor-row">
+    <input type="text" name="icon" maxlength="10" placeholder="Icon (optional)" style="width:4rem;" />
+    <input type="text" name="title" placeholder="Section title" style="flex:1;" required />
+  </div>
+  <div class="guide-toolbar">
+    <button type="button" class="secondary" title="Negrito" onclick="guideWrap(this, '**')"><strong>B</strong></button>
+    <button type="button" class="secondary" title="Sublinhado" onclick="guideWrap(this, '__')"><u>U</u></button>
+    <button type="button" class="secondary" title="Texto maior (título)" onclick="guideToggleHeading(this)">A<sup>+</sup></button>
+  </div>
+  <textarea name="body" rows="10" placeholder="Content (optional — you can fill it in later)"></textarea>
+  <button type="submit">Add section</button>
+</form>
+
+<script>
+  function guideTextarea(btn) {
+    return btn.closest(".guide-toolbar").nextElementSibling;
+  }
+  function guideWrap(btn, marker) {
+    const ta = guideTextarea(btn);
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const value = ta.value;
+    const selected = value.slice(start, end) || "texto";
+    ta.value = value.slice(0, start) + marker + selected + marker + value.slice(end);
+    ta.focus();
+    ta.setSelectionRange(start + marker.length, start + marker.length + selected.length);
+  }
+  function guideToggleHeading(btn) {
+    const ta = guideTextarea(btn);
+    const start = ta.selectionStart;
+    const value = ta.value;
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    if (value.slice(lineStart, lineStart + 2) === "# ") {
+      ta.value = value.slice(0, lineStart) + value.slice(lineStart + 2);
+      ta.setSelectionRange(Math.max(start - 2, lineStart), Math.max(start - 2, lineStart));
+    } else {
+      ta.value = value.slice(0, lineStart) + "# " + value.slice(lineStart);
+      ta.setSelectionRange(start + 2, start + 2);
+    }
+    ta.focus();
+  }
+</script>
+{% endblock %}
