@@ -373,7 +373,23 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 .guide-toolbar button u { text-decoration: underline; }
 
-.container.guide-admin-wide { max-width: 1500px; }
+.container.guide-admin-wide {
+  max-width: 1500px;
+  /* Nordlig is a paid font not bundled here -- this stack picks it up
+     automatically once its @font-face is added, and falls back to
+     Helvetica (then the platform's default sans-serif) until then. */
+  font-family: Helvetica, Arial, sans-serif;
+}
+.guide-admin-wide h1,
+.guide-admin-wide h2,
+.guide-admin-wide summary {
+  font-family: "Nordlig", Helvetica, Arial, sans-serif;
+}
+.guide-admin-wide input,
+.guide-admin-wide select,
+.guide-admin-wide textarea {
+  font-family: inherit;
+}
 
 @media (min-width: 900px) {
   .guide-editor-form textarea { min-height: 65vh; }
