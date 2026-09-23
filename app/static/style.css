@@ -384,6 +384,9 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .guide-admin-wide h2,
 .guide-admin-wide summary {
   font-family: "Nordlig", Helvetica, Arial, sans-serif;
+  /* Only the Regular weight of Nordlig is installed -- pinning to 400 avoids
+     a browser-synthesized (and often ugly) fake bold on a display serif. */
+  font-weight: 400;
 }
 .guide-admin-wide input,
 .guide-admin-wide select,

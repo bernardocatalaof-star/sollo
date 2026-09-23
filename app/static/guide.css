@@ -27,7 +27,7 @@ body.guide-body {
   text-align: center;
 }
 
-.guide-hero h1 { margin: 0 0 0.35rem; font-size: 1.8rem; font-family: var(--guide-font-heading); }
+.guide-hero h1 { margin: 0 0 0.35rem; font-size: 1.8rem; font-family: var(--guide-font-heading); font-weight: 400; }
 .guide-hero p { margin: 0; color: var(--guide-muted); }
 
 .guide-nav {
@@ -76,6 +76,7 @@ body.guide-body {
   margin: 0 0 0.75rem;
   font-size: 1.2rem;
   font-family: var(--guide-font-heading);
+  font-weight: 400;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -87,7 +88,7 @@ body.guide-body {
 .guide-section ul:last-child { margin-bottom: 0; }
 .guide-section a { color: var(--guide-accent); }
 .guide-section .empty { color: var(--guide-muted); font-style: italic; }
-.guide-section h3 { margin: 0 0 0.6rem; font-size: 1.05rem; font-family: var(--guide-font-heading); }
+.guide-section h3 { margin: 0 0 0.6rem; font-size: 1.05rem; font-family: var(--guide-font-heading); font-weight: 400; }
 .guide-section u { text-decoration: underline; text-decoration-color: var(--guide-accent); }
 
 .guide-footer { text-align: center; color: var(--guide-muted); font-size: 0.8rem; padding: 1rem; }
