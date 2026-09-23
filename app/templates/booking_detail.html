@@ -13,6 +13,7 @@
 </p>
 <p class="muted">Reference: {{ booking.external_id }} · Booked on: {{ booking.booked_at if booking.booked_at else "not set — check COL_BOOKED_AT / the sheet's raw value" }}</p>
 <p class="muted">Phone: {% if booking.phone %}<a href="tel:{{ booking.phone }}">{{ booking.phone }}</a>{% else %}not set — check COL_CUSTOMER_PHONE / the sheet's raw value{% endif %}</p>
+<p class="muted">Email: {% if booking.email %}<a href="mailto:{{ booking.email }}">{{ booking.email }}</a>{% else %}not set — check COL_CUSTOMER_EMAIL / the sheet's raw value{% endif %}</p>
 {% if booking.status.lower() == "cancelled" %}<p class="notice">Cancelled: no cleaning fee and no land fee owed (the cabin was never used) — its NET_PAID revenue still counts.</p>{% endif %}
 {% if booking.skip_cleaning_fee %}<p class="notice">No-show: no cleaning fee and no land fee owed (the cabin was never used) — revenue still counts.</p>{% endif %}
 {% if booking.override_note %}<p class="muted">Correction note: {{ booking.override_note }}</p>{% endif %}

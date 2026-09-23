@@ -56,6 +56,7 @@ def get_db():
 _COLUMN_MIGRATIONS = [
     ("bookings", "booked_at", "DATE"),
     ("bookings", "phone", "VARCHAR(60)"),
+    ("bookings", "email", "VARCHAR(200)"),
     ("bookings", "cabin_override_id", "INTEGER"),
     ("bookings", "check_out_override", "DATE"),
     ("bookings", "skip_cleaning_fee", "BOOLEAN DEFAULT FALSE"),

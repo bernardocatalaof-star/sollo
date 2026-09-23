@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     col_customer_first_name: str = "customer_first_name"
     col_customer_last_name: str = "customer_last_name"
     col_customer_phone: str = "customer_mobile_number"
+    col_customer_email: str = "customer_email"
     col_cabin: str = "products"
     col_check_in: str = "start_on"
     col_check_out: str = "end_on"
