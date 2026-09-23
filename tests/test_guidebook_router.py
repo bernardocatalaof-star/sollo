@@ -67,7 +67,8 @@ def test_seed_default_sections_creates_all_defaults_in_order(db_session):
         .all()
     )
     assert len(sections) == len(DEFAULT_SECTIONS)
-    assert [s.title for s in sections] == [title for _, title in DEFAULT_SECTIONS]
+    assert [s.title for s in sections] == [title for _, title, _ in DEFAULT_SECTIONS]
+    assert [s.title_en for s in sections] == [title_en for _, _, title_en in DEFAULT_SECTIONS]
     assert [s.position for s in sections] == list(range(len(DEFAULT_SECTIONS)))
 
 
@@ -76,12 +77,14 @@ def test_add_section_appends_after_existing_sections(db_session):
     db_session.add(GuidebookSection(cabin_id=cabin.id, title="First", position=0))
     db_session.commit()
 
-    add_section(cabin.id, title="Second", icon="🔥", body="hello", db=db_session)
+    add_section(cabin.id, title="Second", icon="🔥", body="hello", title_en="Second EN", body_en="hello EN", db=db_session)
 
     sections = db_session.query(GuidebookSection).filter_by(cabin_id=cabin.id).order_by(GuidebookSection.position).all()
     assert [s.title for s in sections] == ["First", "Second"]
     assert sections[1].position == 1
     assert sections[1].icon == "🔥"
+    assert sections[1].title_en == "Second EN"
+    assert sections[1].body_en == "hello EN"
 
 
 def test_update_section_overwrites_fields(db_session):
@@ -90,13 +93,17 @@ def test_update_section_overwrites_fields(db_session):
     db_session.add(section)
     db_session.commit()
 
-    update_section(section.id, title="New", icon="🔑", body="new body", db=db_session)
+    update_section(
+        section.id, title="New", icon="🔑", body="new body", title_en="New EN", body_en="new body EN", db=db_session
+    )
     db_session.expire_all()
 
     updated = db_session.get(GuidebookSection, section.id)
     assert updated.title == "New"
     assert updated.icon == "🔑"
     assert updated.body == "new body"
+    assert updated.title_en == "New EN"
+    assert updated.body_en == "new body EN"
 
 
 def test_move_section_swaps_position_with_previous_sibling(db_session):

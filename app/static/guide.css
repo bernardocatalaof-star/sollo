@@ -35,15 +35,23 @@ body.guide-body {
   top: 0;
   z-index: 5;
   display: flex;
+  align-items: center;
   gap: 0.5rem;
-  overflow-x: auto;
   padding: 0.75rem 1rem;
   background: rgba(250, 247, 242, 0.92);
   backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--guide-border);
 }
 
-.guide-nav a {
+.guide-nav-links {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  flex: 1;
+  min-width: 0;
+}
+
+.guide-nav-links a {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -59,7 +67,38 @@ body.guide-body {
   white-space: nowrap;
 }
 
-.guide-nav a:hover { border-color: var(--guide-accent); color: var(--guide-accent); }
+.guide-nav-links a:hover { border-color: var(--guide-accent); color: var(--guide-accent); }
+
+/* Language switch: always visible in the sticky nav bar, so it's easy to
+   find whether a guest has just opened the page or scrolled down. */
+.guide-lang-switch {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 2px;
+  background: var(--guide-panel);
+  border: 1px solid var(--guide-border);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.lang-btn {
+  border: none;
+  background: transparent;
+  color: var(--guide-muted);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lang-btn.active { background: var(--guide-accent); color: #fff; }
+
+/* Bilingual content: both languages are rendered server-side and the
+   inactive one is hidden client-side, so the toggle is instant (no reload)
+   and the page still degrades gracefully to Portuguese with JS disabled. */
+body.guide-body:not(.lang-en) [data-lang="en"] { display: none !important; }
+body.guide-body.lang-en [data-lang="pt"] { display: none !important; }
 
 .guide-main { max-width: 680px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
 

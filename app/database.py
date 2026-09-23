@@ -1,5 +1,6 @@
 import os
 import secrets
+from datetime import datetime
 
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
@@ -60,6 +61,8 @@ _COLUMN_MIGRATIONS = [
     ("bookings", "skip_cleaning_fee", "BOOLEAN DEFAULT FALSE"),
     ("bookings", "override_note", "VARCHAR(300) DEFAULT ''"),
     ("cabins", "guide_token", "VARCHAR(32) DEFAULT ''"),
+    ("guidebook_sections", "title_en", "VARCHAR(120) DEFAULT ''"),
+    ("guidebook_sections", "body_en", "TEXT"),
 ]
 
 
@@ -159,3 +162,109 @@ def run_data_fixes(engine: Engine) -> None:
                 )
             )
             conn.execute(text("DELETE FROM cabins WHERE lower(name) = 'olivia weekend'"))
+
+
+# Info the owner gave directly (pasted in chat, not scraped from anywhere --
+# the linked Mailchimp emails, the Notion FAQ page, and the Canva manuals
+# were all unreachable from here, blocked by this environment's network
+# policy) -- seeded once as extra guidebook sections per cabin. Each entry
+# is tracked via its own Settings marker so it only runs once; a later
+# manual edit or deletion by the owner is never overwritten or reinstated.
+_CABIN_EXTRA_SECTIONS = {
+    "Olivia": [
+        {
+            "key": "sim",
+            "icon": "📱",
+            "title": "Cartão SIM da cabana",
+            "title_en": "Cabin SIM card",
+            "body": "Telemóvel da cabana: **912 673 846** (Vodafone)\nCódigo PIN: **0878**\nCódigo PUK: **47319946**",
+            "body_en": "Cabin phone: **912 673 846** (Vodafone)\nPIN code: **0878**\nPUK code: **47319946**",
+        },
+        {
+            "key": "links",
+            "icon": "🔗",
+            "title": "Recursos úteis",
+            "title_en": "Useful links",
+            "body": (
+                "Manual completo da cabana:\n"
+                "https://www.canva.com/design/DAGUTqx5X14/JAjG6-WK6RxbgDDiMblYUA/view\n\n"
+                "Perguntas frequentes:\n"
+                "https://app.notion.com/p/Perguntas-e-problemas-2961c45f6969804cbd85dfebf77689a5"
+            ),
+            "body_en": (
+                "Full cabin manual:\n"
+                "https://www.canva.com/design/DAGUTqx5X14/JAjG6-WK6RxbgDDiMblYUA/view\n\n"
+                "Frequently asked questions:\n"
+                "https://app.notion.com/p/Perguntas-e-problemas-2961c45f6969804cbd85dfebf77689a5"
+            ),
+        },
+    ],
+    "Santiago": [
+        {
+            "key": "sim",
+            "icon": "📱",
+            "title": "Cartão SIM da cabana",
+            "title_en": "Cabin SIM card",
+            "body": "Telemóvel da cabana: **917 631 865** (Vodafone)\nCódigo PIN: **1338**\nCódigo PUK: **28534642**",
+            "body_en": "Cabin phone: **917 631 865** (Vodafone)\nPIN code: **1338**\nPUK code: **28534642**",
+        },
+        {
+            "key": "links",
+            "icon": "🔗",
+            "title": "Recursos úteis",
+            "title_en": "Useful links",
+            "body": (
+                "Manual completo da cabana:\n"
+                "https://www.canva.com/design/DAG18Qbqzo8/t9EBjr5A5EjACZRDUxLn5A/view\n\n"
+                "Perguntas frequentes:\n"
+                "https://app.notion.com/p/Perguntas-e-problemas-2961c45f6969804cbd85dfebf77689a5"
+            ),
+            "body_en": (
+                "Full cabin manual:\n"
+                "https://www.canva.com/design/DAG18Qbqzo8/t9EBjr5A5EjACZRDUxLn5A/view\n\n"
+                "Frequently asked questions:\n"
+                "https://app.notion.com/p/Perguntas-e-problemas-2961c45f6969804cbd85dfebf77689a5"
+            ),
+        },
+    ],
+}
+
+
+def seed_cabin_extra_sections(engine: Engine) -> None:
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+    if not {"cabins", "guidebook_sections", "settings"}.issubset(table_names):
+        return
+
+    with engine.begin() as conn:
+        for cabin_name, entries in _CABIN_EXTRA_SECTIONS.items():
+            cabin_id = conn.execute(text("SELECT id FROM cabins WHERE name = :n"), {"n": cabin_name}).scalar()
+            if not cabin_id:
+                continue
+            for entry in entries:
+                marker = f"guidebook_seeded_{entry['key']}_{cabin_name.lower()}"
+                already = conn.execute(text("SELECT value FROM settings WHERE key = :k"), {"k": marker}).scalar()
+                if already:
+                    continue
+                max_position = conn.execute(
+                    text("SELECT MAX(position) FROM guidebook_sections WHERE cabin_id = :c"), {"c": cabin_id}
+                ).scalar()
+                now = datetime.utcnow()
+                conn.execute(
+                    text(
+                        "INSERT INTO guidebook_sections "
+                        "(cabin_id, icon, title, title_en, body, body_en, position, created_at, updated_at) "
+                        "VALUES (:cabin_id, :icon, :title, :title_en, :body, :body_en, :position, :now, :now)"
+                    ),
+                    {
+                        "cabin_id": cabin_id,
+                        "icon": entry["icon"],
+                        "title": entry["title"],
+                        "title_en": entry["title_en"],
+                        "body": entry["body"],
+                        "body_en": entry["body_en"],
+                        "position": (max_position + 1) if max_position is not None else 0,
+                        "now": now,
+                    },
+                )
+                conn.execute(text("INSERT INTO settings (key, value) VALUES (:k, '1')"), {"k": marker})

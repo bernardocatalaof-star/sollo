@@ -23,6 +23,7 @@ from app.database import (
     engine,
     run_data_fixes,
     run_schema_migrations,
+    seed_cabin_extra_sections,
 )
 from app.routers import auth, bookings, calendar, expenses, extra_revenue, guidebook, ledger, monthly
 from app.sheets_sync import oauth_is_connected
@@ -31,6 +32,7 @@ Base.metadata.create_all(bind=engine)
 run_schema_migrations(engine)
 backfill_cabin_guide_tokens(engine)
 run_data_fixes(engine)
+seed_cabin_extra_sections(engine)
 
 app = FastAPI(title="Sollo — Guest & Operations Management")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

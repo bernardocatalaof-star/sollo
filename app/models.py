@@ -131,6 +131,12 @@ class GuidebookSection(Base):
     title: Mapped[str] = mapped_column(String(120), default="")
     icon: Mapped[str] = mapped_column(String(10), default="")
     body: Mapped[str] = mapped_column(Text, default="")
+    # Portuguese is the default/primary language (title/body above); these
+    # hold the optional English translation shown when a guest switches the
+    # language toggle on the public page. Empty means "not translated yet"
+    # -- the guest page falls back to the Portuguese text in that case.
+    title_en: Mapped[str] = mapped_column(String(120), default="")
+    body_en: Mapped[str] = mapped_column(Text, default="")
     position: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

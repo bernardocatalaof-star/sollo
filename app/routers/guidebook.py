@@ -15,16 +15,18 @@ templates = Jinja2Templates(directory="app/templates")
 
 # Seeded into a cabin's guidebook the first time it's opened with no sections
 # yet, so the owner starts from a ready-made structure instead of a blank page.
+# Portuguese is the site's default language; English is the translation shown
+# when a guest switches the language toggle on the public page.
 DEFAULT_SECTIONS = [
-    ("📌", "Most important stuff"),
-    ("🧭", "How to get there"),
-    ("🔑", "Door codes"),
-    ("🏡", "Cabin features"),
-    ("📖", "How to use the cabin"),
-    ("🔥", "Fire danger rating"),
-    ("🎲", "Recipes & entertainment"),
-    ("🛟", "Safety info"),
-    ("☎️", "Important contacts"),
+    ("📌", "Mais importante", "Most important stuff"),
+    ("🧭", "Como chegar", "How to get there"),
+    ("🔑", "Códigos das portas", "Door codes"),
+    ("🏡", "Características da cabana", "Cabin features"),
+    ("📖", "Como usar a cabana", "How to use the cabin"),
+    ("🔥", "Risco de incêndio", "Fire danger rating"),
+    ("🎲", "Receitas & entretenimento", "Recipes & entertainment"),
+    ("🛟", "Informação de segurança", "Safety info"),
+    ("☎️", "Contactos importantes", "Important contacts"),
 ]
 
 _URL_RE = re.compile(r"(https?://[^\s<]+)")
@@ -82,8 +84,12 @@ templates.env.filters["render_body"] = render_body
 
 
 def _seed_default_sections(db: Session, cabin: Cabin) -> None:
-    for position, (icon, title) in enumerate(DEFAULT_SECTIONS):
-        db.add(GuidebookSection(cabin_id=cabin.id, icon=icon, title=title, body="", position=position))
+    for position, (icon, title, title_en) in enumerate(DEFAULT_SECTIONS):
+        db.add(
+            GuidebookSection(
+                cabin_id=cabin.id, icon=icon, title=title, title_en=title_en, body="", position=position
+            )
+        )
     db.commit()
 
 
@@ -124,10 +130,22 @@ def add_section(
     title: str = Form(...),
     icon: str = Form(""),
     body: str = Form(""),
+    title_en: str = Form(""),
+    body_en: str = Form(""),
     db: Session = Depends(get_db),
 ):
     max_position = max((s.position for s in db.query(GuidebookSection).filter_by(cabin_id=cabin_id)), default=-1)
-    db.add(GuidebookSection(cabin_id=cabin_id, title=title, icon=icon, body=body, position=max_position + 1))
+    db.add(
+        GuidebookSection(
+            cabin_id=cabin_id,
+            title=title,
+            icon=icon,
+            body=body,
+            title_en=title_en,
+            body_en=body_en,
+            position=max_position + 1,
+        )
+    )
     db.commit()
     return RedirectResponse(f"/guidebook/{cabin_id}", status_code=303)
 
@@ -138,6 +156,8 @@ def update_section(
     title: str = Form(...),
     icon: str = Form(""),
     body: str = Form(""),
+    title_en: str = Form(""),
+    body_en: str = Form(""),
     db: Session = Depends(get_db),
 ):
     section = db.get(GuidebookSection, section_id)
@@ -146,6 +166,8 @@ def update_section(
     section.title = title
     section.icon = icon
     section.body = body
+    section.title_en = title_en
+    section.body_en = body_en
     section.updated_at = datetime.utcnow()
     db.commit()
     return RedirectResponse(f"/guidebook/{section.cabin_id}", status_code=303)

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,29 +10,65 @@
 <body class="guide-body">
   <div class="guide-hero">
     <h1>{{ cabin.name }}</h1>
-    <p>Everything you need for your stay</p>
+    <p data-lang="pt">Tudo o que precisas para a tua estadia</p>
+    <p data-lang="en">Everything you need for your stay</p>
   </div>
 
-  {% if sections %}
   <nav class="guide-nav">
-    {% for section in sections %}
-    <a href="#section-{{ section.id }}">{{ section.icon }} {{ section.title }}</a>
-    {% endfor %}
+    <div class="guide-nav-links">
+      {% for section in sections %}
+      <a data-lang="pt" href="#section-{{ section.id }}">{{ section.icon }} {{ section.title }}</a>
+      <a data-lang="en" href="#section-{{ section.id }}">{{ section.icon }} {{ (section.title_en or "").strip() or section.title }}</a>
+      {% endfor %}
+    </div>
+    <div class="guide-lang-switch">
+      <button type="button" class="lang-btn" data-lang-btn="pt" onclick="guideSetLang('pt')">PT</button>
+      <button type="button" class="lang-btn" data-lang-btn="en" onclick="guideSetLang('en')">EN</button>
+    </div>
   </nav>
-  {% endif %}
 
   <main class="guide-main">
     {% for section in sections %}
+    {% set body_en_source = section.body_en if (section.body_en and section.body_en.strip()) else section.body %}
     <section class="guide-section" id="section-{{ section.id }}">
-      <h2>{{ section.icon }} {{ section.title }}</h2>
-      {% set rendered = section.body|render_body %}
-      {% if rendered %}{{ rendered }}{% else %}<p class="empty">No information added yet.</p>{% endif %}
+      <h2 data-lang="pt">{{ section.icon }} {{ section.title }}</h2>
+      <h2 data-lang="en">{{ section.icon }} {{ (section.title_en or "").strip() or section.title }}</h2>
+
+      {% set rendered_pt = section.body|render_body %}
+      <div data-lang="pt">
+        {% if rendered_pt %}{{ rendered_pt }}{% else %}<p class="empty">Ainda sem informação.</p>{% endif %}
+      </div>
+
+      {% set rendered_en = body_en_source|render_body %}
+      <div data-lang="en">
+        {% if rendered_en %}{{ rendered_en }}{% else %}<p class="empty">No information added yet.</p>{% endif %}
+      </div>
     </section>
     {% else %}
-    <p class="empty">This guidebook doesn't have any sections yet.</p>
+    <p class="empty" data-lang="pt">Este guia ainda não tem secções.</p>
+    <p class="empty" data-lang="en">This guidebook doesn't have any sections yet.</p>
     {% endfor %}
   </main>
 
-  <div class="guide-footer">Have a great stay!</div>
+  <div class="guide-footer">
+    <span data-lang="pt">Boa estadia!</span>
+    <span data-lang="en">Have a great stay!</span>
+  </div>
+
+  <script>
+    function guideSetLang(lang) {
+      document.body.classList.toggle("lang-en", lang === "en");
+      document.documentElement.lang = lang;
+      document.querySelectorAll("[data-lang-btn]").forEach(function (btn) {
+        btn.classList.toggle("active", btn.dataset.langBtn === lang);
+      });
+      try { localStorage.setItem("guide-lang", lang); } catch (e) {}
+    }
+    (function () {
+      var saved = "pt";
+      try { saved = localStorage.getItem("guide-lang") || "pt"; } catch (e) {}
+      guideSetLang(saved);
+    })();
+  </script>
 </body>
 </html>

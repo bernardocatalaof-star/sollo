@@ -2,8 +2,8 @@ from datetime import date
 
 from sqlalchemy import create_engine, inspect, text
 
-from app.database import backfill_cabin_guide_tokens, run_data_fixes, run_schema_migrations
-from app.models import Booking, Cabin, Expense
+from app.database import backfill_cabin_guide_tokens, run_data_fixes, run_schema_migrations, seed_cabin_extra_sections
+from app.models import Booking, Cabin, Expense, GuidebookSection
 
 
 def test_run_schema_migrations_adds_missing_column_without_touching_existing_rows():
@@ -50,6 +50,34 @@ def test_run_schema_migrations_adds_guide_token_to_cabins():
     inspector = inspect(engine)
     columns = {c["name"] for c in inspector.get_columns("cabins")}
     assert "guide_token" in columns
+
+
+def test_run_schema_migrations_adds_english_translation_columns_to_guidebook_sections():
+    engine = create_engine("sqlite:///:memory:")
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE guidebook_sections (id INTEGER PRIMARY KEY, cabin_id INTEGER, "
+                "title VARCHAR(120), icon VARCHAR(10), body TEXT, position INTEGER)"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO guidebook_sections (id, cabin_id, title, icon, body, position) "
+                "VALUES (1, 1, 'Door codes', '🔑', 'Front: 1234', 0)"
+            )
+        )
+
+    run_schema_migrations(engine)
+
+    inspector = inspect(engine)
+    columns = {c["name"] for c in inspector.get_columns("guidebook_sections")}
+    assert "title_en" in columns
+    assert "body_en" in columns
+
+    with engine.connect() as conn:
+        row = conn.execute(text("SELECT title, body FROM guidebook_sections WHERE id = 1")).first()
+    assert row == ("Door codes", "Front: 1234")
 
 
 def test_run_schema_migrations_is_a_no_op_on_a_fresh_database(db_session):
@@ -232,3 +260,70 @@ def test_run_data_fixes_is_a_no_op_when_no_phantom_cabin_exists(db_session):
     db_session.expire_all()
 
     assert db_session.query(Cabin).filter(Cabin.name == "Olivia").count() == 1
+
+
+def test_seed_cabin_extra_sections_adds_sim_and_links_sections_for_olivia_and_santiago(db_session):
+    olivia = Cabin(name="Olivia")
+    santiago = Cabin(name="Santiago")
+    db_session.add_all([olivia, santiago])
+    db_session.commit()
+
+    seed_cabin_extra_sections(db_session.get_bind())
+    db_session.expire_all()
+
+    for cabin in (olivia, santiago):
+        titles = {s.title for s in db_session.query(GuidebookSection).filter_by(cabin_id=cabin.id).all()}
+        assert "Cartão SIM da cabana" in titles
+        assert "Recursos úteis" in titles
+
+
+def test_seed_cabin_extra_sections_appends_after_existing_sections(db_session):
+    olivia = Cabin(name="Olivia")
+    db_session.add(olivia)
+    db_session.flush()
+    db_session.add(GuidebookSection(cabin_id=olivia.id, title="Mais importante", position=0))
+    db_session.commit()
+
+    seed_cabin_extra_sections(db_session.get_bind())
+    db_session.expire_all()
+
+    sections = (
+        db_session.query(GuidebookSection).filter_by(cabin_id=olivia.id).order_by(GuidebookSection.position).all()
+    )
+    assert [s.title for s in sections] == ["Mais importante", "Cartão SIM da cabana", "Recursos úteis"]
+    assert [s.position for s in sections] == [0, 1, 2]
+
+
+def test_seed_cabin_extra_sections_is_idempotent_and_respects_manual_deletion(db_session):
+    olivia = Cabin(name="Olivia")
+    db_session.add(olivia)
+    db_session.commit()
+
+    seed_cabin_extra_sections(db_session.get_bind())
+    db_session.expire_all()
+    sim_section = db_session.query(GuidebookSection).filter_by(cabin_id=olivia.id, title="Cartão SIM da cabana").one()
+    db_session.delete(sim_section)  # owner decides they don't want this section
+    db_session.commit()
+
+    seed_cabin_extra_sections(db_session.get_bind())  # must not reinstate the deleted section
+    db_session.expire_all()
+
+    titles = {s.title for s in db_session.query(GuidebookSection).filter_by(cabin_id=olivia.id).all()}
+    assert "Cartão SIM da cabana" not in titles
+    assert "Recursos úteis" in titles  # the other seeded section is untouched
+
+
+def test_seed_cabin_extra_sections_skips_cabins_it_does_not_know_about(db_session):
+    other = Cabin(name="Guest House")
+    db_session.add(other)
+    db_session.commit()
+
+    seed_cabin_extra_sections(db_session.get_bind())  # must not raise or add anything
+    db_session.expire_all()
+
+    assert db_session.query(GuidebookSection).filter_by(cabin_id=other.id).count() == 0
+
+
+def test_seed_cabin_extra_sections_skips_missing_tables():
+    engine = create_engine("sqlite:///:memory:")
+    seed_cabin_extra_sections(engine)  # no tables at all -- must not raise
