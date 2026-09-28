@@ -1,28 +1,37 @@
 from datetime import date, timedelta
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.weekly_briefing import format_cleanings_message, format_notes_message, next_week_bounds
+from app.weekly_briefing import format_cleanings_message, format_notes_message
 from app.whatsapp import send_whatsapp_message
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
-def _upcoming_sunday(today: date) -> date:
-    return today + timedelta(days=(6 - today.weekday()) % 7)
+def _current_week_start(today: date) -> date:
+    """Monday of the calendar week containing `today` -- the default week
+    shown on this page, since that's the week most useful to check/test
+    against right now (unlike the automatic Sunday-night send, which always
+    reports on the week starting the NEXT day)."""
+    return today - timedelta(days=today.weekday())
 
 
 @router.get("/weekly-briefing")
 def preview_weekly_briefing(
-    request: Request, sent: int | None = None, error: str | None = None, db: Session = Depends(get_db)
+    request: Request,
+    week_start: date | None = None,
+    sent: int | None = None,
+    error: str | None = None,
+    db: Session = Depends(get_db),
 ):
-    week_start, week_end = next_week_bounds(_upcoming_sunday(date.today()))
+    week_start = week_start or _current_week_start(date.today())
+    week_end = week_start + timedelta(days=6)
     return templates.TemplateResponse(
         "weekly_briefing.html",
         {
@@ -31,6 +40,8 @@ def preview_weekly_briefing(
             "notes_message": format_notes_message(db, week_start, week_end),
             "week_start": week_start,
             "week_end": week_end,
+            "prev_week_start": week_start - timedelta(days=7),
+            "next_week_start": week_start + timedelta(days=7),
             "sent": sent,
             "error": error,
         },
@@ -38,11 +49,13 @@ def preview_weekly_briefing(
 
 
 @router.post("/weekly-briefing/send-now")
-def send_weekly_briefing_now(db: Session = Depends(get_db)):
-    week_start, week_end = next_week_bounds(_upcoming_sunday(date.today()))
+def send_weekly_briefing_now(week_start: date = Form(...), db: Session = Depends(get_db)):
+    week_end = week_start + timedelta(days=6)
     try:
         send_whatsapp_message(format_cleanings_message(db, week_start, week_end))
         send_whatsapp_message(format_notes_message(db, week_start, week_end))
     except Exception as exc:
-        return RedirectResponse(f"/weekly-briefing?error={quote(str(exc))}", status_code=303)
-    return RedirectResponse("/weekly-briefing?sent=1", status_code=303)
+        return RedirectResponse(
+            f"/weekly-briefing?week_start={week_start}&error={quote(str(exc))}", status_code=303
+        )
+    return RedirectResponse(f"/weekly-briefing?week_start={week_start}&sent=1", status_code=303)

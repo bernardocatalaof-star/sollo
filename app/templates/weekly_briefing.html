@@ -3,9 +3,17 @@
 {% block content %}
 <h1>Weekly Briefing</h1>
 <p class="muted">
-  Two WhatsApp messages sent every Sunday night, covering the week {{ week_start.strftime("%d/%m") }} – {{ week_end.strftime("%d/%m") }}:
+  Two WhatsApp messages sent every Sunday night, covering the following Monday–Sunday:
   one listing which cabins need cleaning on which day, the other any Issues &amp; Occurrences notes on bookings checking in that week.
-  This preview always shows the upcoming week, whatever day it is today.
+  This page defaults to the current week so you can check/test it against real data; use the links below to look at another week.
+</p>
+
+<p>
+  <a href="/weekly-briefing?week_start={{ prev_week_start }}">&larr; prev week</a>
+  &nbsp;·&nbsp;
+  <strong>{{ week_start.strftime("%d/%m") }} – {{ week_end.strftime("%d/%m") }}</strong>
+  &nbsp;·&nbsp;
+  <a href="/weekly-briefing?week_start={{ next_week_start }}">next week &rarr;</a>
 </p>
 
 {% if sent %}<div class="notice">Sent.</div>{% endif %}
@@ -23,7 +31,8 @@
 </div>
 
 <form class="inline" method="post" action="/weekly-briefing/send-now">
-  <button type="submit">Send test messages now</button>
+  <input type="hidden" name="week_start" value="{{ week_start }}">
+  <button type="submit">Send these two messages now</button>
 </form>
-<p class="muted">Sends these exact two previews via WhatsApp right away, without affecting the automatic Sunday-night send.</p>
+<p class="muted">Sends the two messages above (for the week shown, {{ week_start.strftime("%d/%m") }} – {{ week_end.strftime("%d/%m") }}) via WhatsApp right away, without affecting the automatic Sunday-night send.</p>
 {% endblock %}
