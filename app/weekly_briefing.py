@@ -1,5 +1,6 @@
-"""Weekly operations briefing sent over WhatsApp (see app/whatsapp.py), covering
-the Monday-Sunday week following the Sunday night it's sent:
+"""Weekly operations briefing sent over WhatsApp (see app/whatsapp.py) as TWO
+separate messages, covering the Monday-Sunday week following the Sunday
+night it's sent:
 
   - Cleanings needed: which cabins have a checkout on which day, so cleaning
     can be scheduled ahead of time. A no-show or cancelled booking
@@ -87,12 +88,10 @@ def upcoming_check_in_notes(db: Session, week_start: date, week_end: date) -> li
     return notes
 
 
-def format_weekly_briefing(db: Session, week_start: date, week_end: date) -> str:
+def format_cleanings_message(db: Session, week_start: date, week_end: date) -> str:
     cleanings = cleanings_this_week(db, week_start, week_end)
-    notes = upcoming_check_in_notes(db, week_start, week_end)
 
-    lines = [f"🧹 Sollo — Semana de {week_start:%d/%m} a {week_end:%d/%m}", "", "Limpezas:"]
-
+    lines = [f"🧹 Sollo — Limpezas semana {week_start:%d/%m} a {week_end:%d/%m}", ""]
     if cleanings:
         for entry in cleanings:
             weekday_name = _WEEKDAY_NAMES_PT[entry.day.weekday()]
@@ -100,8 +99,13 @@ def format_weekly_briefing(db: Session, week_start: date, week_end: date) -> str
     else:
         lines.append("Sem checkouts agendados esta semana.")
 
-    lines.append("")
-    lines.append("Notas a saber com antecedência:")
+    return "\n".join(lines)
+
+
+def format_notes_message(db: Session, week_start: date, week_end: date) -> str:
+    notes = upcoming_check_in_notes(db, week_start, week_end)
+
+    lines = [f"📝 Sollo — Notas semana {week_start:%d/%m} a {week_end:%d/%m}", ""]
     if notes:
         for n in notes:
             weekday_name = _WEEKDAY_NAMES_PT[n.check_in.weekday()]

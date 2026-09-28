@@ -3,18 +3,27 @@
 {% block content %}
 <h1>Weekly Briefing</h1>
 <p class="muted">
-  A WhatsApp message sent every Sunday night, covering the week {{ week_start.strftime("%d/%m") }} – {{ week_end.strftime("%d/%m") }}:
-  which cabins need cleaning on which day, and any Issues &amp; Occurrences notes on bookings checking in that week.
+  Two WhatsApp messages sent every Sunday night, covering the week {{ week_start.strftime("%d/%m") }} – {{ week_end.strftime("%d/%m") }}:
+  one listing which cabins need cleaning on which day, the other any Issues &amp; Occurrences notes on bookings checking in that week.
   This preview always shows the upcoming week, whatever day it is today.
 </p>
 
 {% if sent %}<div class="notice">Sent.</div>{% endif %}
 {% if error %}<div class="notice error">Could not send: {{ error }}</div>{% endif %}
 
-<pre style="white-space:pre-wrap; background:rgba(255,255,255,0.03); border-radius:8px; padding:1rem; max-width:480px;">{{ message }}</pre>
+<div class="cards">
+  <div class="card">
+    <div class="label">Message 1 — Cleanings</div>
+    <pre style="white-space:pre-wrap; background:rgba(255,255,255,0.03); border-radius:8px; padding:1rem;">{{ cleanings_message }}</pre>
+  </div>
+  <div class="card">
+    <div class="label">Message 2 — Notes</div>
+    <pre style="white-space:pre-wrap; background:rgba(255,255,255,0.03); border-radius:8px; padding:1rem;">{{ notes_message }}</pre>
+  </div>
+</div>
 
 <form class="inline" method="post" action="/weekly-briefing/send-now">
-  <button type="submit">Send test message now</button>
+  <button type="submit">Send test messages now</button>
 </form>
-<p class="muted">Sends this exact preview via WhatsApp right away, without affecting the automatic Sunday-night send.</p>
+<p class="muted">Sends these exact two previews via WhatsApp right away, without affecting the automatic Sunday-night send.</p>
 {% endblock %}

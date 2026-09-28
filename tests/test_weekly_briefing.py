@@ -3,7 +3,8 @@ from datetime import date, datetime
 from app.models import Booking, Cabin, StayFlag
 from app.weekly_briefing import (
     cleanings_this_week,
-    format_weekly_briefing,
+    format_cleanings_message,
+    format_notes_message,
     next_week_bounds,
     should_send_weekly_briefing,
     upcoming_check_in_notes,
@@ -120,10 +121,32 @@ def test_upcoming_check_in_notes_skips_bookings_without_flags(db_session):
     assert notes == []
 
 
-def test_format_weekly_briefing_lists_cleanings_and_notes(db_session):
-    olivia = Cabin(name="Olivia")
+def test_format_cleanings_message_lists_cabins_by_day(db_session):
     santiago = Cabin(name="Santiago")
-    db_session.add_all([olivia, santiago])
+    db_session.add(santiago)
+    db_session.flush()
+    db_session.add(
+        Booking(external_id="5C5-M8JL", cabin=santiago, guest_name="Maria Silva",
+                check_in=date(2026, 10, 8), check_out=date(2026, 10, 10), total_price=200)
+    )
+    db_session.commit()
+
+    message = format_cleanings_message(db_session, date(2026, 10, 5), date(2026, 10, 11))
+
+    assert "05/10" in message and "11/10" in message
+    assert "Sábado (10/10): Santiago" in message
+    assert "Maria Silva" not in message  # cleanings message is cabin/day only, no guest names
+    assert "Notas" not in message  # the two messages are fully separate
+
+
+def test_format_cleanings_message_shows_fallback_text_when_none(db_session):
+    message = format_cleanings_message(db_session, date(2026, 10, 5), date(2026, 10, 11))
+    assert "Sem checkouts agendados esta semana." in message
+
+
+def test_format_notes_message_lists_upcoming_check_ins_with_notes(db_session):
+    santiago = Cabin(name="Santiago")
+    db_session.add(santiago)
     db_session.flush()
     guest = Booking(external_id="5C5-M8JL", cabin=santiago, guest_name="Maria Silva",
                      check_in=date(2026, 10, 8), check_out=date(2026, 10, 10), total_price=200)
@@ -132,19 +155,17 @@ def test_format_weekly_briefing_lists_cleanings_and_notes(db_session):
     db_session.add(StayFlag(booking_id=guest.id, category="note", note="Allergic to feathers"))
     db_session.commit()
 
-    message = format_weekly_briefing(db_session, date(2026, 10, 5), date(2026, 10, 11))
+    message = format_notes_message(db_session, date(2026, 10, 5), date(2026, 10, 11))
 
     assert "05/10" in message and "11/10" in message
-    assert "Quinta-feira (08/10)" not in message  # nothing checks out that day
-    assert "Sábado (10/10): Santiago" in message
     assert "5C5-M8JL" in message
     assert "Maria Silva" in message
     assert "Allergic to feathers" in message
+    assert "Limpezas" not in message  # the two messages are fully separate
 
 
-def test_format_weekly_briefing_shows_fallback_text_when_nothing_to_report(db_session):
-    message = format_weekly_briefing(db_session, date(2026, 10, 5), date(2026, 10, 11))
-    assert "Sem checkouts agendados esta semana." in message
+def test_format_notes_message_shows_fallback_text_when_none(db_session):
+    message = format_notes_message(db_session, date(2026, 10, 5), date(2026, 10, 11))
     assert "Sem notas esta semana." in message
 
 

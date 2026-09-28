@@ -43,7 +43,8 @@ from app.settings_store import get_setting, set_setting
 from app.sheets_sync import oauth_is_connected
 from app.weekly_briefing import (
     LAST_WEEKLY_BRIEFING_SETTING_KEY,
-    format_weekly_briefing,
+    format_cleanings_message,
+    format_notes_message,
     next_week_bounds,
     should_send_weekly_briefing,
 )
@@ -86,8 +87,8 @@ async def _weekly_briefing_loop() -> None:
                     last_sent = get_setting(db, LAST_WEEKLY_BRIEFING_SETTING_KEY)
                     if should_send_weekly_briefing(now, last_sent):
                         week_start, week_end = next_week_bounds(now.date())
-                        message = format_weekly_briefing(db, week_start, week_end)
-                        send_whatsapp_message(message)
+                        send_whatsapp_message(format_cleanings_message(db, week_start, week_end))
+                        send_whatsapp_message(format_notes_message(db, week_start, week_end))
                         set_setting(db, LAST_WEEKLY_BRIEFING_SETTING_KEY, week_start.isoformat())
                 finally:
                     db.close()
