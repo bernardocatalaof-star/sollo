@@ -28,6 +28,7 @@
   <details class="guide-editor" {{ "open" if loop.first else "" }}>
     <summary>{{ section.icon }} {{ section.title or "Untitled section" }}</summary>
     <form method="post" action="/guidebook/sections/{{ section.id }}" class="guide-editor-form">
+      <div class="guide-lang-label">🇵🇹 Português</div>
       <div class="guide-editor-row">
         <input type="text" name="icon" value="{{ section.icon }}" maxlength="10" placeholder="Icon" style="width:4rem;" />
         <input type="text" name="title" value="{{ section.title }}" placeholder="Section title" style="flex:1;" required />
@@ -38,6 +39,18 @@
         <button type="button" class="secondary" title="Texto maior (título)" onclick="guideToggleHeading(this)">A<sup>+</sup></button>
       </div>
       <textarea name="body" rows="14" placeholder="Write this section's content. Blank line = new paragraph, &quot;# &quot; at the start of a line = a bigger heading, lines starting with &quot;- &quot; = a bullet list, **bold**, __underline__, and links are auto-detected.">{{ section.body }}</textarea>
+
+      <div class="guide-lang-label">🇬🇧 English (optional — falls back to Portuguese if left blank)</div>
+      <div class="guide-editor-row">
+        <input type="text" name="title_en" value="{{ section.title_en }}" placeholder="Section title (EN)" style="flex:1;" />
+      </div>
+      <div class="guide-toolbar">
+        <button type="button" class="secondary" title="Bold" onclick="guideWrap(this, '**')"><strong>B</strong></button>
+        <button type="button" class="secondary" title="Underline" onclick="guideWrap(this, '__')"><u>U</u></button>
+        <button type="button" class="secondary" title="Bigger text (heading)" onclick="guideToggleHeading(this)">A<sup>+</sup></button>
+      </div>
+      <textarea name="body_en" rows="14" placeholder="English translation of this section's content (optional).">{{ section.body_en }}</textarea>
+
       <div class="guide-editor-row">
         <button type="submit">Save</button>
         <form method="post" action="/guidebook/sections/{{ section.id }}/move" style="margin:0;">
@@ -61,6 +74,7 @@
 
 <h2>Add a section</h2>
 <form method="post" action="/guidebook/{{ cabin.id }}/sections" class="guide-editor-form">
+  <div class="guide-lang-label">🇵🇹 Português</div>
   <div class="guide-editor-row">
     <input type="text" name="icon" maxlength="10" placeholder="Icon (optional)" style="width:4rem;" />
     <input type="text" name="title" placeholder="Section title" style="flex:1;" required />
@@ -71,6 +85,18 @@
     <button type="button" class="secondary" title="Texto maior (título)" onclick="guideToggleHeading(this)">A<sup>+</sup></button>
   </div>
   <textarea name="body" rows="10" placeholder="Content (optional — you can fill it in later)"></textarea>
+
+  <div class="guide-lang-label">🇬🇧 English (optional — falls back to Portuguese if left blank)</div>
+  <div class="guide-editor-row">
+    <input type="text" name="title_en" placeholder="Section title (EN)" style="flex:1;" />
+  </div>
+  <div class="guide-toolbar">
+    <button type="button" class="secondary" title="Bold" onclick="guideWrap(this, '**')"><strong>B</strong></button>
+    <button type="button" class="secondary" title="Underline" onclick="guideWrap(this, '__')"><u>U</u></button>
+    <button type="button" class="secondary" title="Bigger text (heading)" onclick="guideToggleHeading(this)">A<sup>+</sup></button>
+  </div>
+  <textarea name="body_en" rows="10" placeholder="English translation (optional)"></textarea>
+
   <button type="submit">Add section</button>
 </form>
 

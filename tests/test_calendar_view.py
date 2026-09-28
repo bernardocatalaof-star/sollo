@@ -57,15 +57,17 @@ def test_month_grid_excludes_cancelled_bookings(db_session):
     olivia, _ = _seed(db_session)
     db_session.add(
         Booking(
-            external_id="R-CANCELLED", cabin=olivia, guest_name="Pedro Alves", status="cancelled",
-            check_in=date(2026, 8, 12), check_out=date(2026, 8, 14), total_price=0,
+            external_id="R-CANCELLED", cabin=olivia, guest_name="Cancelled Guest",
+            check_in=date(2026, 8, 12), check_out=date(2026, 8, 14), total_price=100,
+            status="cancelled",
         )
     )
     db_session.commit()
 
     grid = month_grid(db_session, 2026, 8)
-
-    assert "Pedro Alves" not in [b.booking.guest_name for b in _all_bars(grid)]
+    names = {b.booking.guest_name for b in _all_bars(grid)}
+    assert "Cancelled Guest" not in names
+    assert "Ana Silva" in names  # unrelated non-cancelled bookings still show
 
 
 def test_month_grid_renders_a_stay_as_one_bar_not_per_day_tags(db_session):
