@@ -84,5 +84,17 @@ class Settings(BaseSettings):
     # Dashboard "Profit year-to-date" goal bar target (EUR/year).
     annual_profit_target: float = 36000.0
 
+    # Weekly WhatsApp briefing (via Twilio), sent Sunday night for the coming
+    # Monday-Sunday: which cabins need cleaning which day, and any Issues &
+    # Occurrences notes on bookings checking in that week, so they're known
+    # ahead of the guest's arrival. Disabled until Twilio is actually
+    # configured (all four settings below are non-empty).
+    weekly_briefing_enabled: bool = False
+    weekly_briefing_send_hour: int = 20  # Europe/Lisbon, 24h clock
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_from: str = ""  # e.g. "whatsapp:+14155238886"
+    twilio_whatsapp_to: str = ""  # e.g. "whatsapp:+351912345678"
+
 
 settings = Settings()
