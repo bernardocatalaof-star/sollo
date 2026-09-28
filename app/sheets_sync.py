@@ -331,6 +331,7 @@ def sync_bookings(db: Session) -> SyncResult:
             total_price=_resolve_total_price(row, status),
             booking_source=str(row.get(settings.col_booking_source, "")).strip(),
             status=status,
+            variants=str(row.get(settings.col_variants, "")).strip(),
             synced_at=datetime.utcnow(),
         )
 

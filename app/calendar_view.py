@@ -3,6 +3,10 @@
 Rendered as one week per row, with each stay drawn as a single bar spanning the
 nights it covers (clipped at week boundaries) rather than repeated per-day tags --
 this reads like a normal calendar/Gantt view instead of a checklist.
+
+Cancelled bookings are excluded entirely -- the cabin was never actually
+occupied for them, unlike a no-show (which still blocked the cabin and stays
+on the calendar).
 """
 
 import calendar as _calendar
@@ -77,7 +81,11 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
     bookings = (
         db.query(Booking)
         .options(joinedload(Booking.cabin), joinedload(Booking.cabin_override))
-        .filter(Booking.check_in < next_month_start, effective_check_out > month_start)
+        .filter(
+            Booking.check_in < next_month_start,
+            effective_check_out > month_start,
+            func.lower(Booking.status) != "cancelled",
+        )
         .order_by(Booking.check_in)
         .all()
     )

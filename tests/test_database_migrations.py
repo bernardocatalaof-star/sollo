@@ -30,6 +30,7 @@ def test_run_schema_migrations_adds_missing_column_without_touching_existing_row
     assert "booked_at" in columns
     assert "phone" in columns
     assert "email" in columns
+    assert "variants" in columns
     assert "cabin_override_id" in columns
     assert "check_out_override" in columns
     assert "skip_cleaning_fee" in columns

@@ -5,7 +5,7 @@
 <h1>{{ booking.guest_name or "Guest" }}</h1>
 <p class="muted">
   {{ booking.effective_cabin.name }}{% if booking.cabin_override_id %} <span class="badge" title="Synced value: {{ booking.cabin.name }}">corrected</span>{% endif %}
-  · {{ booking.check_in }} → {{ booking.effective_check_out }}{% if booking.check_out_override %} <span class="badge" title="Synced value: {{ booking.check_out }}">corrected</span>{% endif %}
+  · {{ booking.check_in }} → {{ booking.effective_check_out }}{% if booking.check_out_override %} <span class="badge" title="Synced value: {{ booking.check_out }}">corrected</span>{% endif %}{% if booking.has_late_checkout %} <span class="badge holiday">late checkout</span>{% endif %}
   · {{ booking.booking_source or "unknown source" }}
   {% if booking.status.lower() == "cancelled" %}· <span class="badge">cancelled</span>
   {% elif booking.status.lower() == "pending_payment" %}· <span class="badge holiday">pending payment</span>

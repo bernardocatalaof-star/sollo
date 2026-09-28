@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     col_customer_phone: str = "customer_mobile_number"
     col_customer_email: str = "customer_email"
     col_cabin: str = "products"
+    col_variants: str = "variants"  # free-text add-ons/options, e.g. "late check-out"
     col_check_in: str = "start_on"
     col_check_out: str = "end_on"
     col_booked_at: str = "booked_at"  # date the reservation was made, for the Sales metric

@@ -62,3 +62,23 @@ def test_skip_landowner_fees_true_for_cancelled_status():
 def test_skip_landowner_fees_false_for_pending_payment_status():
     booking = Booking(status="pending_payment")
     assert booking.skip_landowner_fees is False
+
+
+def test_has_late_checkout_false_by_default():
+    booking = Booking()
+    assert booking.has_late_checkout is False
+
+
+def test_has_late_checkout_true_for_hyphenated_spelling():
+    booking = Booking(variants="Late check-out")
+    assert booking.has_late_checkout is True
+
+
+def test_has_late_checkout_true_for_plain_spelling():
+    booking = Booking(variants="late checkout")
+    assert booking.has_late_checkout is True
+
+
+def test_has_late_checkout_false_for_unrelated_variants():
+    booking = Booking(variants="Extra towels")
+    assert booking.has_late_checkout is False

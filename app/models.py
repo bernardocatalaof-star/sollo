@@ -41,6 +41,7 @@ class Booking(Base):
     total_price: Mapped[float] = mapped_column(Float, default=0.0)
     booking_source: Mapped[str] = mapped_column(String(120), default="")
     status: Mapped[str] = mapped_column(String(60), default="")
+    variants: Mapped[str] = mapped_column(String(300), default="")  # free-text add-ons, e.g. "late check-out"
 
     synced_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -79,6 +80,13 @@ class Booking(Base):
         NET_PAID amount) -- only the landowner's cut of an actual stay is
         excluded, since the cabin was never really used."""
         return bool(self.skip_cleaning_fee) or (self.status or "").strip().lower() == "cancelled"
+
+    @property
+    def has_late_checkout(self) -> bool:
+        """True when the Sheet's "Variants" column (free-text add-ons/options)
+        mentions a late check-out, matching either spelling ("late check-out"
+        or "late checkout")."""
+        return "late checkout" in (self.variants or "").lower().replace("-", "")
 
 
 class StayFlag(Base):
