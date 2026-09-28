@@ -91,11 +91,11 @@ def upcoming_check_in_notes(db: Session, week_start: date, week_end: date) -> li
 def format_cleanings_message(db: Session, week_start: date, week_end: date) -> str:
     cleanings = cleanings_this_week(db, week_start, week_end)
 
-    lines = [f"🧹 Sollo — Limpezas semana {week_start:%d/%m} a {week_end:%d/%m}", ""]
+    lines = ["Limpezas esta semana:", ""]
     if cleanings:
         for entry in cleanings:
             weekday_name = _WEEKDAY_NAMES_PT[entry.day.weekday()]
-            lines.append(f"{weekday_name} ({entry.day:%d/%m}): {', '.join(entry.cabin_names)}")
+            lines.append(f"* {weekday_name}: {', '.join(entry.cabin_names)}")
     else:
         lines.append("Sem checkouts agendados esta semana.")
 

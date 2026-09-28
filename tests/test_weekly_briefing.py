@@ -133,8 +133,8 @@ def test_format_cleanings_message_lists_cabins_by_day(db_session):
 
     message = format_cleanings_message(db_session, date(2026, 10, 5), date(2026, 10, 11))
 
-    assert "05/10" in message and "11/10" in message
-    assert "Sábado (10/10): Santiago" in message
+    assert message.startswith("Limpezas esta semana:")
+    assert "* Sábado: Santiago" in message
     assert "Maria Silva" not in message  # cleanings message is cabin/day only, no guest names
     assert "Notas" not in message  # the two messages are fully separate
 

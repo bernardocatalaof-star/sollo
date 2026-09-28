@@ -22,13 +22,31 @@
 <div class="cards">
   <div class="card">
     <div class="label">Message 1 — Cleanings</div>
-    <pre style="white-space:pre-wrap; background:rgba(255,255,255,0.03); border-radius:8px; padding:1rem;">{{ cleanings_message }}</pre>
+    <pre id="cleanings-text" style="white-space:pre-wrap; background:rgba(255,255,255,0.03); border-radius:8px; padding:1rem; -webkit-user-select:text; user-select:text;">{{ cleanings_message }}</pre>
+    <button type="button" onclick="copyMessage('cleanings-text', this)">Copy</button>
   </div>
   <div class="card">
     <div class="label">Message 2 — Notes</div>
-    <pre style="white-space:pre-wrap; background:rgba(255,255,255,0.03); border-radius:8px; padding:1rem;">{{ notes_message }}</pre>
+    <pre id="notes-text" style="white-space:pre-wrap; background:rgba(255,255,255,0.03); border-radius:8px; padding:1rem; -webkit-user-select:text; user-select:text;">{{ notes_message }}</pre>
+    <button type="button" onclick="copyMessage('notes-text', this)">Copy</button>
   </div>
 </div>
+
+<script>
+function copyMessage(elId, btn) {
+  const text = document.getElementById(elId).innerText;
+  const done = () => {
+    const original = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => alert("Could not copy — please select the text manually."));
+  } else {
+    alert("Could not copy — please select the text manually.");
+  }
+}
+</script>
 
 <form class="inline" method="post" action="/weekly-briefing/send-now">
   <input type="hidden" name="week_start" value="{{ week_start }}">
