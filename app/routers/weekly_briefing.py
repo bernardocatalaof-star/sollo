@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.weekly_briefing import format_weekly_briefing, next_week_bounds
+from app.weekly_briefing import format_cleanings_message, format_notes_message, next_week_bounds
 from app.whatsapp import send_whatsapp_message
 
 router = APIRouter()
@@ -23,12 +23,12 @@ def preview_weekly_briefing(
     request: Request, sent: int | None = None, error: str | None = None, db: Session = Depends(get_db)
 ):
     week_start, week_end = next_week_bounds(_upcoming_sunday(date.today()))
-    message = format_weekly_briefing(db, week_start, week_end)
     return templates.TemplateResponse(
         "weekly_briefing.html",
         {
             "request": request,
-            "message": message,
+            "cleanings_message": format_cleanings_message(db, week_start, week_end),
+            "notes_message": format_notes_message(db, week_start, week_end),
             "week_start": week_start,
             "week_end": week_end,
             "sent": sent,
@@ -40,9 +40,9 @@ def preview_weekly_briefing(
 @router.post("/weekly-briefing/send-now")
 def send_weekly_briefing_now(db: Session = Depends(get_db)):
     week_start, week_end = next_week_bounds(_upcoming_sunday(date.today()))
-    message = format_weekly_briefing(db, week_start, week_end)
     try:
-        send_whatsapp_message(message)
+        send_whatsapp_message(format_cleanings_message(db, week_start, week_end))
+        send_whatsapp_message(format_notes_message(db, week_start, week_end))
     except Exception as exc:
         return RedirectResponse(f"/weekly-briefing?error={quote(str(exc))}", status_code=303)
     return RedirectResponse("/weekly-briefing?sent=1", status_code=303)
