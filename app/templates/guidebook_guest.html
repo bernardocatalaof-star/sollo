@@ -8,24 +8,27 @@
   <link rel="stylesheet" href="/static/guide.css" />
 </head>
 <body class="guide-body">
+  <button type="button" id="guide-menu-toggle" class="guide-menu-toggle" onclick="guideToggleMenu()" aria-label="Menu">☰</button>
+  <div id="guide-menu-backdrop" class="guide-menu-backdrop" onclick="guideCloseMenu()"></div>
+
+  <aside id="guide-sidebar" class="guide-sidebar">
+    <div class="guide-lang-switch">
+      <button type="button" class="lang-btn" data-lang-btn="pt" onclick="guideSetLang('pt')">PT</button>
+      <button type="button" class="lang-btn" data-lang-btn="en" onclick="guideSetLang('en')">EN</button>
+    </div>
+    <nav class="guide-sidebar-links">
+      {% for section in sections %}
+      <a data-lang="pt" data-target="section-{{ section.id }}" href="#section-{{ section.id }}" onclick="guideLinkClicked()">{{ section.icon }} {{ section.title }}</a>
+      <a data-lang="en" data-target="section-{{ section.id }}" href="#section-{{ section.id }}" onclick="guideLinkClicked()">{{ section.icon }} {{ (section.title_en or "").strip() or section.title }}</a>
+      {% endfor %}
+    </nav>
+  </aside>
+
   <div class="guide-hero">
     <h1>{{ cabin.name }}</h1>
     <p data-lang="pt">Tudo o que precisas para a tua estadia</p>
     <p data-lang="en">Everything you need for your stay</p>
   </div>
-
-  <nav class="guide-nav">
-    <div class="guide-nav-links">
-      {% for section in sections %}
-      <a data-lang="pt" href="#section-{{ section.id }}">{{ section.icon }} {{ section.title }}</a>
-      <a data-lang="en" href="#section-{{ section.id }}">{{ section.icon }} {{ (section.title_en or "").strip() or section.title }}</a>
-      {% endfor %}
-    </div>
-    <div class="guide-lang-switch">
-      <button type="button" class="lang-btn" data-lang-btn="pt" onclick="guideSetLang('pt')">PT</button>
-      <button type="button" class="lang-btn" data-lang-btn="en" onclick="guideSetLang('en')">EN</button>
-    </div>
-  </nav>
 
   <main class="guide-main">
     {% for section in sections %}
@@ -68,6 +71,54 @@
       var saved = "pt";
       try { saved = localStorage.getItem("guide-lang") || "pt"; } catch (e) {}
       guideSetLang(saved);
+    })();
+
+    // Open by default on desktop (plenty of room for a docked-looking panel);
+    // starts collapsed on mobile/tablet, reached via the toggle button.
+    (function () {
+      if (window.innerWidth >= 900) {
+        document.getElementById("guide-sidebar").classList.add("open");
+        document.body.classList.add("sidebar-open");
+        document.getElementById("guide-menu-toggle").textContent = "✕";
+      }
+    })();
+
+    function guideToggleMenu() {
+      var isOpen = document.getElementById("guide-sidebar").classList.toggle("open");
+      document.getElementById("guide-menu-backdrop").classList.toggle("open", isOpen);
+      document.body.classList.toggle("sidebar-open", isOpen);
+      document.getElementById("guide-menu-toggle").textContent = isOpen ? "✕" : "☰";
+    }
+    function guideCloseMenu() {
+      document.getElementById("guide-sidebar").classList.remove("open");
+      document.getElementById("guide-menu-backdrop").classList.remove("open");
+      document.body.classList.remove("sidebar-open");
+      document.getElementById("guide-menu-toggle").textContent = "☰";
+    }
+    // On mobile the menu is a drawer -- picking a section should close it.
+    // On desktop it stays docked open so it keeps acting as a table of contents.
+    function guideLinkClicked() {
+      if (window.innerWidth < 900) guideCloseMenu();
+    }
+
+    // Scroll-spy: highlights the section currently in view in the sidebar,
+    // so a guest scrolling the page (not just clicking the menu) can still
+    // tell where they are.
+    (function () {
+      var sections = document.querySelectorAll(".guide-section");
+      if (!sections.length || !("IntersectionObserver" in window)) return;
+      var observer = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            document.querySelectorAll(".guide-sidebar-links a").forEach(function (link) {
+              link.classList.toggle("active", link.dataset.target === entry.target.id);
+            });
+          });
+        },
+        { rootMargin: "-40% 0px -55% 0px" }
+      );
+      sections.forEach(function (s) { observer.observe(s); });
     })();
   </script>
 </body>

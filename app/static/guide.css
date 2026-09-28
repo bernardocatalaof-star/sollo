@@ -30,55 +30,67 @@ body.guide-body {
 .guide-hero h1 { margin: 0 0 0.35rem; font-size: 1.8rem; font-family: var(--guide-font-heading); font-weight: 400; }
 .guide-hero p { margin: 0; color: var(--guide-muted); }
 
-.guide-nav {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: rgba(250, 247, 242, 0.92);
-  backdrop-filter: blur(6px);
-  border-bottom: 1px solid var(--guide-border);
-}
-
-.guide-nav-links {
-  display: flex;
-  gap: 0.5rem;
-  overflow-x: auto;
-  flex: 1;
-  min-width: 0;
-}
-
-.guide-nav-links a {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.45rem 0.9rem;
-  border-radius: 999px;
+/* Menu toggle: a floating round button, always reachable (fixed position),
+   top-right on every screen size -- opens the right-side sidebar. */
+.guide-menu-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 25;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   border: 1px solid var(--guide-border);
   background: var(--guide-panel);
   color: var(--guide-text);
-  text-decoration: none;
-  font-family: var(--guide-font-heading);
-  font-size: 0.85rem;
-  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(43, 38, 32, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  cursor: pointer;
 }
 
-.guide-nav-links a:hover { border-color: var(--guide-accent); color: var(--guide-accent); }
+.guide-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 16, 10, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 18;
+}
 
-/* Language switch: always visible in the sticky nav bar, so it's easy to
-   find whether a guest has just opened the page or scrolled down. */
-.guide-lang-switch {
-  flex: 0 0 auto;
-  display: flex;
-  gap: 2px;
+.guide-menu-backdrop.open { opacity: 1; pointer-events: auto; }
+
+/* The expandable right-side menu itself: off-canvas by default, slides in
+   over the content (rather than pushing it) when toggled open. */
+.guide-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(320px, 85vw);
   background: var(--guide-panel);
+  border-left: 1px solid var(--guide-border);
+  box-shadow: -10px 0 28px rgba(43, 38, 32, 0.12);
+  padding: 4.5rem 1.1rem 1.5rem;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  z-index: 20;
+}
+
+.guide-sidebar.open { transform: translateX(0); }
+
+.guide-lang-switch {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--guide-bg);
   border: 1px solid var(--guide-border);
   border-radius: 999px;
   padding: 2px;
+  margin-bottom: 1.25rem;
 }
 
 .lang-btn {
@@ -94,6 +106,35 @@ body.guide-body {
 
 .lang-btn.active { background: var(--guide-accent); color: #fff; }
 
+.guide-sidebar-links { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.guide-sidebar-links a {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  color: var(--guide-text);
+  text-decoration: none;
+  font-family: var(--guide-font-heading);
+  font-size: 0.92rem;
+}
+
+.guide-sidebar-links a:hover { background: var(--guide-bg); }
+.guide-sidebar-links a.active { background: var(--guide-bg); color: var(--guide-accent); font-weight: 700; }
+
+/* On desktop the sidebar defaults to open and behaves like a docked table of
+   contents -- shift the content left instead of letting it sit underneath,
+   and skip the dimmed backdrop since it's not acting as an overlay drawer. */
+@media (min-width: 900px) {
+  body.guide-body.sidebar-open .guide-hero,
+  body.guide-body.sidebar-open .guide-main,
+  body.guide-body.sidebar-open .guide-footer {
+    margin-right: min(320px, 85vw);
+  }
+  body.guide-body.sidebar-open .guide-menu-backdrop { display: none; }
+}
+
 /* Bilingual content: both languages are rendered server-side and the
    inactive one is hidden client-side, so the toggle is instant (no reload)
    and the page still degrades gracefully to Portuguese with JS disabled. */
@@ -108,7 +149,7 @@ body.guide-body.lang-en [data-lang="pt"] { display: none !important; }
   border-radius: 14px;
   padding: 1.5rem;
   margin-bottom: 1.25rem;
-  scroll-margin-top: 4.5rem;
+  scroll-margin-top: 1.5rem;
 }
 
 .guide-section h2 {
