@@ -2,9 +2,11 @@
 separate messages, covering the Monday-Sunday week following the Sunday
 night it's sent:
 
-  - Cleanings needed: which cabins have a checkout on which day, so cleaning
-    can be scheduled ahead of time. A no-show or cancelled booking
-    (Booking.skip_landowner_fees) never needed cleaning, so it's excluded.
+  - Cleanings needed: which cabins need cleaning on which day. Cleanings only
+    happen Monday, Wednesday or Friday -- a checkout on any other day rolls
+    forward to the next one of those days (see _next_cleaning_day). A
+    no-show or cancelled booking (Booking.skip_landowner_fees) never needed
+    cleaning, so it's excluded.
   - Notes to know in advance: every Issues & Occurrences note on a booking
     CHECKING IN that week, surfaced before the guest arrives rather than
     discovered after the fact.
@@ -33,6 +35,16 @@ def next_week_bounds(sunday: date) -> tuple[date, date]:
     return week_start, week_end
 
 
+# Cleanings only happen Monday(0), Wednesday(2) or Friday(4) -- a checkout on
+# any other weekday rolls forward to the next one of those days. A checkout
+# that already falls on one of them needs no rolling (offset 0).
+_NEXT_CLEANING_DAY_OFFSET = {0: 0, 1: 1, 2: 0, 3: 1, 4: 0, 5: 2, 6: 1}
+
+
+def _next_cleaning_day(checkout: date) -> date:
+    return checkout + timedelta(days=_NEXT_CLEANING_DAY_OFFSET[checkout.weekday()])
+
+
 @dataclass
 class DayCleanings:
     day: date
@@ -41,18 +53,26 @@ class DayCleanings:
 
 def cleanings_this_week(db: Session, week_start: date, week_end: date) -> list[DayCleanings]:
     effective_check_out = func.coalesce(Booking.check_out_override, Booking.check_out)
+    # A checkout up to 2 days before week_start can still roll forward onto a
+    # cleaning day inside this week (e.g. a Saturday checkout cleans the
+    # following Monday), so the query window has to start earlier than
+    # week_start -- the actual per-week filter happens below, on the computed
+    # cleaning day, not on the checkout date itself.
+    query_start = week_start - timedelta(days=2)
     bookings = (
         db.query(Booking)
         .options(joinedload(Booking.cabin), joinedload(Booking.cabin_override))
-        .filter(effective_check_out >= week_start, effective_check_out <= week_end)
+        .filter(effective_check_out >= query_start, effective_check_out <= week_end)
         .all()
     )
     by_day: dict[date, list[str]] = {}
     for booking in bookings:
         if booking.skip_landowner_fees:
             continue  # no-show / cancelled -- the cabin was never used, so no cleaning is needed
-        day = booking.effective_check_out
-        by_day.setdefault(day, []).append(booking.effective_cabin.name)
+        cleaning_day = _next_cleaning_day(booking.effective_check_out)
+        if not (week_start <= cleaning_day <= week_end):
+            continue  # rolled into the previous or next week instead
+        by_day.setdefault(cleaning_day, []).append(booking.effective_cabin.name)
     return [DayCleanings(day=d, cabin_names=sorted(names)) for d, names in sorted(by_day.items())]
 
 

@@ -81,6 +81,81 @@ def test_cleanings_this_week_respects_the_checkout_override(db_session):
     assert days[0].day == date(2026, 10, 7)
 
 
+def test_cleanings_this_week_rolls_a_non_monday_wednesday_friday_checkout_forward(db_session):
+    olivia = Cabin(name="Olivia")
+    db_session.add(olivia)
+    db_session.flush()
+    db_session.add_all(
+        [
+            # Tuesday 06/10 -> rolls to Wednesday 07/10
+            Booking(external_id="TUE", cabin=olivia, guest_name="Tue",
+                    check_in=date(2026, 10, 4), check_out=date(2026, 10, 6), total_price=100),
+            # Thursday 08/10 -> rolls to Friday 09/10
+            Booking(external_id="THU", cabin=olivia, guest_name="Thu",
+                    check_in=date(2026, 10, 6), check_out=date(2026, 10, 8), total_price=100),
+        ]
+    )
+    db_session.commit()
+
+    days = {d.day: d.cabin_names for d in cleanings_this_week(db_session, date(2026, 10, 5), date(2026, 10, 11))}
+
+    assert days == {date(2026, 10, 7): ["Olivia"], date(2026, 10, 9): ["Olivia"]}
+
+
+def test_cleanings_this_week_pulls_in_a_sunday_checkout_from_the_previous_week(db_session):
+    # A checkout on Sunday 04/10 (the day before this week starts) rolls
+    # forward to Monday 05/10 -- inside this week -- matching the real case
+    # reported: a Sunday checkout needs its cleaning done the next Monday.
+    olivia = Cabin(name="Olivia")
+    db_session.add(olivia)
+    db_session.flush()
+    db_session.add(
+        Booking(external_id="SUN", cabin=olivia, guest_name="Sun",
+                check_in=date(2026, 10, 1), check_out=date(2026, 10, 4), total_price=100)
+    )
+    db_session.commit()
+
+    days = cleanings_this_week(db_session, date(2026, 10, 5), date(2026, 10, 11))
+
+    assert len(days) == 1
+    assert days[0].day == date(2026, 10, 5)
+    assert days[0].cabin_names == ["Olivia"]
+
+
+def test_cleanings_this_week_pulls_in_a_saturday_checkout_from_the_previous_week(db_session):
+    # Saturday 03/10 rolls forward two days to Monday 05/10.
+    olivia = Cabin(name="Olivia")
+    db_session.add(olivia)
+    db_session.flush()
+    db_session.add(
+        Booking(external_id="SAT", cabin=olivia, guest_name="Sat",
+                check_in=date(2026, 9, 30), check_out=date(2026, 10, 3), total_price=100)
+    )
+    db_session.commit()
+
+    days = cleanings_this_week(db_session, date(2026, 10, 5), date(2026, 10, 11))
+
+    assert len(days) == 1
+    assert days[0].day == date(2026, 10, 5)
+
+
+def test_cleanings_this_week_excludes_a_weekend_checkout_that_rolls_into_next_week(db_session):
+    # Sunday 11/10 is the last day of this week, but its cleaning rolls to
+    # Monday 12/10 -- next week -- so it must NOT show up here.
+    olivia = Cabin(name="Olivia")
+    db_session.add(olivia)
+    db_session.flush()
+    db_session.add(
+        Booking(external_id="SUN-END", cabin=olivia, guest_name="Sun End",
+                check_in=date(2026, 10, 9), check_out=date(2026, 10, 11), total_price=100)
+    )
+    db_session.commit()
+
+    days = cleanings_this_week(db_session, date(2026, 10, 5), date(2026, 10, 11))
+
+    assert days == []
+
+
 def test_upcoming_check_in_notes_only_includes_bookings_checking_in_that_week(db_session):
     olivia = Cabin(name="Olivia")
     db_session.add(olivia)
@@ -127,14 +202,14 @@ def test_format_cleanings_message_lists_cabins_by_day(db_session):
     db_session.flush()
     db_session.add(
         Booking(external_id="5C5-M8JL", cabin=santiago, guest_name="Maria Silva",
-                check_in=date(2026, 10, 8), check_out=date(2026, 10, 10), total_price=200)
+                check_in=date(2026, 10, 7), check_out=date(2026, 10, 9), total_price=200)
     )
     db_session.commit()
 
     message = format_cleanings_message(db_session, date(2026, 10, 5), date(2026, 10, 11))
 
     assert message.startswith("Limpezas esta semana:")
-    assert "* Sábado: Santiago" in message
+    assert "* Sexta-feira: Santiago" in message
     assert "Maria Silva" not in message  # cleanings message is cabin/day only, no guest names
     assert "Notas" not in message  # the two messages are fully separate
 
