@@ -81,6 +81,12 @@ def month_grid(db: Session, year: int, month: int) -> list[Week]:
         .order_by(Booking.check_in)
         .all()
     )
+    # A cancelled stay never happened -- it still counts for revenue (a kept
+    # NET_PAID amount), but the cabin was never actually occupied, so it has
+    # no place on an occupancy calendar. Filtered in Python (matches
+    # Booking.skip_landowner_fees's own status check) rather than in SQL, to
+    # treat a missing/blank status the same safe way.
+    bookings = [b for b in bookings if (b.status or "").strip().lower() != "cancelled"]
 
     week_dates = _calendar.Calendar(firstweekday=0).monthdatescalendar(year, month)
     weeks = []
