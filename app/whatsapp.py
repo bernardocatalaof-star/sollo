@@ -32,4 +32,19 @@ def send_whatsapp_message(body: str) -> None:
         },
         timeout=15,
     )
-    resp.raise_for_status()
+    try:
+        resp.raise_for_status()
+    except requests.HTTPError as exc:
+        # Twilio's error body (code + message) is far more actionable than the
+        # generic "400 Client Error" -- e.g. "21211: The 'To' number ... is not
+        # a valid phone number" -- so surface that instead when it's present.
+        try:
+            detail = resp.json()
+            message = detail.get("message")
+            code = detail.get("code")
+        except ValueError:
+            message = None
+            code = None
+        if message:
+            raise RuntimeError(f"Twilio error {code}: {message}") from exc
+        raise

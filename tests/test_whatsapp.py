@@ -1,4 +1,5 @@
 import pytest
+import requests
 
 from app.whatsapp import WhatsAppNotConfiguredError, send_whatsapp_message
 
@@ -49,14 +50,36 @@ def test_send_whatsapp_message_posts_to_twilio_with_expected_payload(monkeypatch
     }
 
 
-def test_send_whatsapp_message_raises_on_http_error(monkeypatch):
+def test_send_whatsapp_message_surfaces_twilios_error_message(monkeypatch):
     _configure(monkeypatch)
 
     class FailingResponse:
         def raise_for_status(self):
-            raise RuntimeError("Twilio 401")
+            raise requests.HTTPError("400 Client Error")
+
+        def json(self):
+            return {
+                "code": 21211,
+                "message": "The 'To' number +351912345678 is not a valid phone number.",
+            }
 
     monkeypatch.setattr("app.whatsapp.requests.post", lambda *a, **k: FailingResponse())
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="21211.*not a valid phone number"):
+        send_whatsapp_message("hello")
+
+
+def test_send_whatsapp_message_falls_back_to_the_raw_http_error_without_a_json_body(monkeypatch):
+    _configure(monkeypatch)
+
+    class FailingResponse:
+        def raise_for_status(self):
+            raise requests.HTTPError("401 Client Error: Unauthorized")
+
+        def json(self):
+            raise ValueError("no body")
+
+    monkeypatch.setattr("app.whatsapp.requests.post", lambda *a, **k: FailingResponse())
+
+    with pytest.raises(requests.HTTPError, match="401 Client Error"):
         send_whatsapp_message("hello")
