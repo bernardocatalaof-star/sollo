@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}P&amp;L — Sollo{% endblock %}
+{% block content %}
+<h1>P&amp;L</h1>
+<p class="muted">What each booking actually contributed this month, plus the costs that aren't tied to a single stay — and a running cumulative Profit since the beginning.</p>
+
+<div class="month-nav">
+  <a href="/pnl?year={{ prev_year }}&month={{ prev_month }}">&larr; prev</a>
+  <strong>{{ year }}-{{ "%02d"|format(month) }}</strong>
+  <a href="/pnl?year={{ next_year }}&month={{ next_month }}">next &rarr;</a>
+</div>
+
+<h2>Per booking (checking out this month)</h2>
+<p class="muted">Revenue uses the status-aware column (TOTAL / RECEIVED / NET_PAID). Land and cleaning fee are this stay's own full-stay amount, attributed here to its checkout month.</p>
+<table>
+  <thead>
+    <tr>
+      <th>Guest</th>
+      <th>Reference</th>
+      <th>Cabin</th>
+      <th>Checkout</th>
+      <th>Revenue</th>
+      <th>Land fee</th>
+      <th>Cleaning fee</th>
+      <th>Net</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><a class="rowlink" href="/bookings/{{ r.booking_id }}">{{ r.guest_name }}</a></td>
+      <td>{{ r.external_id }}</td>
+      <td>{{ r.cabin_name }}</td>
+      <td>{{ r.check_out }}</td>
+      <td>€{{ "%.2f"|format(r.revenue) }}</td>
+      <td>€{{ "%.2f"|format(r.land_fee) }}</td>
+      <td>€{{ "%.2f"|format(r.cleaning_fee) }}</td>
+      <td class="{{ 'good' if r.net >= 0 else 'bad' }}"><strong>€{{ "%.2f"|format(r.net) }}</strong></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="muted">No bookings checked out this month.</td></tr>
+    {% endfor %}
+  </tbody>
+  {% if rows %}
+  <tfoot>
+    <tr><td colspan="7"><strong>Bookings subtotal</strong></td><td><strong>€{{ "%.2f"|format(bookings_net_subtotal) }}</strong></td></tr>
+  </tfoot>
+  {% endif %}
+</table>
+
+<h2>Not tied to a single booking</h2>
+<table>
+  <tbody>
+    <tr><td>Extra revenue (<a href="/ledger">Ledger</a>)</td><td>+€{{ "%.2f"|format(summary.extra_revenue) }}</td></tr>
+    <tr><td>Other costs (<a href="/ledger">Ledger</a>, excl. supplies)</td><td>-€{{ "%.2f"|format(summary.total_other_costs) }}</td></tr>
+    <tr><td>Fixed operating costs (website, tech, accounting, supplies)</td><td>-€{{ "%.2f"|format(summary.fixed_costs.total) }}</td></tr>
+  </tbody>
+</table>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Bookings subtotal + other lines</div>
+    <div class="value {{ 'good' if computed_total >= 0 else 'bad' }}">€{{ "%.2f"|format(computed_total) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Profit (Monthly Close-out figure)</div>
+    <div class="value {{ 'good' if summary.profit >= 0 else 'bad' }}">€{{ "%.2f"|format(summary.profit) }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Cumulative Profit (since the beginning)</div>
+    <div class="value {{ 'good' if cumulative_profit >= 0 else 'bad' }}">€{{ "%.2f"|format(cumulative_profit) }}</div>
+  </div>
+</div>
+
+{% if reconciliation_diff != 0 %}
+<p class="muted">
+  Difference of €{{ "%.2f"|format(reconciliation_diff) }} between the two totals above: a booking that spans a month boundary has its land fee split by calendar month on the official Monthly Close-out figure, but shown here as a single full-stay amount on its checkout month — this only shows up in a month with a cross-month stay.
+</p>
+{% endif %}
+{% endblock %}

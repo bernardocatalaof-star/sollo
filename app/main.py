@@ -37,6 +37,7 @@ from app.routers import (
     guidebook,
     ledger,
     monthly,
+    pnl,
     weekly_briefing,
 )
 from app.settings_store import get_setting, set_setting
@@ -71,6 +72,7 @@ app.include_router(extra_revenue.router)
 app.include_router(guidebook.router)
 app.include_router(ledger.router)
 app.include_router(monthly.router)
+app.include_router(pnl.router)
 app.include_router(weekly_briefing.router)
 
 

@@ -333,6 +333,63 @@ def profit_year_to_date(db: Session, year: int, month: int) -> float:
     return round(sum(financial_summary(db, year, m).profit for m in range(1, month + 1)), 2)
 
 
+def cumulative_profit_through(db: Session, year: int, month: int) -> float:
+    """Running total of Profit from the earliest month with any activity
+    through year/month (inclusive) -- unlike profit_year_to_date, this never
+    resets at a year boundary, for a true since-inception P&L view."""
+    (start_year, start_month), _ = _activity_month_range(db)
+    total = 0.0
+    y, m = start_year, start_month
+    while (y, m) <= (year, month):
+        total += financial_summary(db, y, m).profit
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return round(total, 2)
+
+
+@dataclass
+class BookingPnLRow:
+    booking_id: int
+    external_id: str
+    guest_name: str
+    cabin_name: str
+    check_out: date
+    revenue: float
+    land_fee: float
+    cleaning_fee: float
+
+    @property
+    def net(self) -> float:
+        return round(self.revenue - self.land_fee - self.cleaning_fee, 2)
+
+
+def pnl_rows_for_month(db: Session, year: int, month: int) -> list[BookingPnLRow]:
+    """Per-booking P&L contribution for bookings closing this month: Revenue
+    (already status-aware -- completed/pending/cancelled each use their own
+    column, see _resolve_total_price in sheets_sync.py) minus that stay's OWN
+    land and cleaning fee. Uses the whole-stay fee (BookingFees), not the
+    month-split land fee landowner_statement uses for a stay spanning a month
+    boundary -- each booking appears exactly once here, attributed fully to
+    its checkout month, so for a rare cross-month stay the bookings subtotal
+    on the P&L page can differ slightly from the landowner statement's split
+    total (see the page's reconciliation line)."""
+    rows = []
+    for booking in bookings_closing_in_month(db, year, month):
+        fees = calculate_booking_fees(booking)
+        rows.append(
+            BookingPnLRow(
+                booking_id=booking.id,
+                external_id=booking.external_id,
+                guest_name=booking.guest_name or "Guest",
+                cabin_name=booking.effective_cabin.name,
+                check_out=booking.effective_check_out,
+                revenue=booking.total_price,
+                land_fee=fees.overnight_fee,
+                cleaning_fee=fees.cleaning_fee,
+            )
+        )
+    return rows
+
+
 @dataclass
 class SalesSummary:
     year: int

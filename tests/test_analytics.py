@@ -2,11 +2,13 @@ from datetime import date
 
 from app.analytics import (
     cost_breakdown_by_month,
+    cumulative_profit_through,
     financial_summary,
     fixed_costs_for_month,
     landowner_justification,
     landowner_statement,
     occupancy_by_cabin_and_month,
+    pnl_rows_for_month,
     profit_by_month,
     profit_year_to_date,
     revenue_by_month,
@@ -496,3 +498,75 @@ def test_landowner_justification_uses_the_overridden_cabin_and_checkout_date(db_
     assert [(c.date, c.guest_name) for c in by_cabin["Cabin 2"].cleanings if c.guest_name == "A"] == [
         (date(2026, 8, 2), "A")
     ]
+
+
+def test_pnl_rows_for_month_only_includes_bookings_closing_that_month(db_session):
+    _seed(db_session)  # R-1, R-2 close in August; R-3 closes in September
+
+    rows = pnl_rows_for_month(db_session, 2026, 8)
+
+    assert {r.external_id for r in rows} == {"R-1", "R-2"}
+
+
+def test_pnl_rows_for_month_computes_revenue_minus_land_and_cleaning_fee(db_session):
+    _seed(db_session)
+
+    rows = pnl_rows_for_month(db_session, 2026, 8)
+    r1 = next(r for r in rows if r.external_id == "R-1")
+
+    assert r1.guest_name == "A"
+    assert r1.cabin_name == "Cabin 1"
+    assert r1.check_out == date(2026, 8, 4)
+    assert r1.revenue == 320
+    assert r1.land_fee == round(3 * 19.8, 2)
+    assert r1.cleaning_fee == 33.0
+    assert r1.net == round(320 - 3 * 19.8 - 33.0, 2)
+
+
+def test_pnl_rows_for_month_empty_when_nothing_closes(db_session):
+    assert pnl_rows_for_month(db_session, 2026, 1) == []
+
+
+def test_pnl_rows_net_reconciles_with_financial_summary_profit_without_cross_month_stays(db_session):
+    cabin = Cabin(name="Cabin 1")
+    db_session.add(cabin)
+    db_session.flush()
+    db_session.add(
+        Booking(external_id="R-1", cabin=cabin, guest_name="A",
+                check_in=date(2026, 8, 1), check_out=date(2026, 8, 4), total_price=320)
+    )
+    db_session.commit()
+
+    rows = pnl_rows_for_month(db_session, 2026, 8)
+    bookings_net = round(sum(r.net for r in rows), 2)
+    summary = financial_summary(db_session, 2026, 8)
+
+    # With no stay crossing a month boundary, the per-booking net rolls up
+    # exactly to the official Profit figure once the non-booking P&L lines
+    # (extra revenue, other costs, fixed costs) are added back in.
+    computed_total = round(
+        bookings_net + summary.extra_revenue - summary.total_other_costs - summary.fixed_costs.total, 2
+    )
+    assert computed_total == summary.profit
+
+
+def test_cumulative_profit_through_starts_from_earliest_activity_not_january(db_session):
+    _seed(db_session)  # earliest activity is August 2026, not January
+
+    cumulative = cumulative_profit_through(db_session, 2026, 9)
+
+    expected = round(
+        financial_summary(db_session, 2026, 8).profit + financial_summary(db_session, 2026, 9).profit, 2
+    )
+    assert cumulative == expected
+
+    # profit_year_to_date sums January through September -- six extra months
+    # of fixed costs with zero activity -- so it's necessarily lower.
+    ytd = profit_year_to_date(db_session, 2026, 9)
+    assert cumulative > ytd
+
+
+def test_cumulative_profit_through_with_no_data_defaults_to_the_current_month_only(db_session):
+    today = date.today()
+    cumulative = cumulative_profit_through(db_session, today.year, today.month)
+    assert cumulative == financial_summary(db_session, today.year, today.month).profit
