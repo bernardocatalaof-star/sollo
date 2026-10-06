@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.calendar_view import cabin_colors, month_grid
+from app.calendar_view import cabin_colors, exclude_no_shows, month_grid
 from app.models import Booking, Cabin
 
 
@@ -68,6 +68,39 @@ def test_month_grid_excludes_cancelled_bookings(db_session):
     names = {b.booking.guest_name for b in _all_bars(grid)}
     assert "Cancelled Guest" not in names
     assert "Ana Silva" in names  # unrelated non-cancelled bookings still show
+
+
+def test_month_grid_keeps_no_shows_for_the_admin_calendar(db_session):
+    olivia, _ = _seed(db_session)
+    db_session.add(
+        Booking(
+            external_id="R-NOSHOW", cabin=olivia, guest_name="No Show Guest",
+            check_in=date(2026, 8, 12), check_out=date(2026, 8, 14), total_price=100,
+            skip_cleaning_fee=True,
+        )
+    )
+    db_session.commit()
+
+    grid = month_grid(db_session, 2026, 8)
+    names = {b.booking.guest_name for b in _all_bars(grid)}
+    assert "No Show Guest" in names  # the cabin was still reserved -- admins want to see it
+
+
+def test_exclude_no_shows_removes_them_for_the_landowner_calendar(db_session):
+    olivia, _ = _seed(db_session)
+    db_session.add(
+        Booking(
+            external_id="R-NOSHOW", cabin=olivia, guest_name="No Show Guest",
+            check_in=date(2026, 8, 12), check_out=date(2026, 8, 14), total_price=100,
+            skip_cleaning_fee=True,
+        )
+    )
+    db_session.commit()
+
+    grid = exclude_no_shows(month_grid(db_session, 2026, 8))
+    names = {b.booking.guest_name for b in _all_bars(grid)}
+    assert "No Show Guest" not in names
+    assert "Ana Silva" in names  # unrelated bookings still show
 
 
 def test_month_grid_renders_a_stay_as_one_bar_not_per_day_tags(db_session):

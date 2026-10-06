@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.analytics import landowner_justification, landowner_statement
-from app.calendar_view import month_grid
+from app.calendar_view import exclude_no_shows, month_grid
 from app.database import get_db
 from app.landowner import get_or_create_landowner_token, regenerate_landowner_token
 from app.weekly_briefing import cleanings_this_week, current_week_start, upcoming_check_in_notes
@@ -33,7 +33,7 @@ def landowner_calendar(
     today = date.today()
     year = year or today.year
     month = month or today.month
-    weeks = month_grid(db, year, month)
+    weeks = exclude_no_shows(month_grid(db, year, month))
 
     prev_month = 12 if month == 1 else month - 1
     prev_year = year - 1 if month == 1 else year

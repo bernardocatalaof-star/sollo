@@ -71,6 +71,14 @@ class Week:
         return max((b.lane for b in self.bars), default=-1) + 1
 
 
+def exclude_no_shows(weeks: list[Week]) -> list[Week]:
+    """Drops a manually-flagged no-show's bars from an already-built grid --
+    for the landowner's calendar specifically, where a stay nobody actually
+    used (and that the landowner was never billed for) has no place, unlike
+    on the admin calendar where it stays visible for operational tracking."""
+    return [Week(days=week.days, bars=[b for b in week.bars if not b.booking.skip_cleaning_fee]) for week in weeks]
+
+
 def month_grid(db: Session, year: int, month: int) -> list[Week]:
     colors = cabin_colors(db)
 
