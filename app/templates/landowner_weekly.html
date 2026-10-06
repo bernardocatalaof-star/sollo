@@ -1,0 +1,35 @@
+{% extends "landowner_base.html" %}
+{% block title %}Weekly Notes — Sollo{% endblock %}
+{% block content %}
+<h1>Weekly Notes</h1>
+<p class="muted">{{ week_start.strftime("%d/%m") }} – {{ week_end.strftime("%d/%m") }}</p>
+
+<h2>Limpezas esta semana</h2>
+<table>
+  <thead><tr><th>Dia</th><th>Cabins</th></tr></thead>
+  <tbody>
+    {% for entry in cleanings %}
+    <tr><td>{{ entry.day.strftime("%A, %d/%m") }}</td><td>{{ entry.cabin_names|join(", ") }}</td></tr>
+    {% else %}
+    <tr><td colspan="2" class="muted">Sem checkouts agendados esta semana.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Notas</h2>
+<table>
+  <thead><tr><th>Reserva</th><th>Hóspede</th><th>Check-in</th><th>Nota</th></tr></thead>
+  <tbody>
+    {% for n in notes %}
+    <tr>
+      <td>{{ n.external_id }}</td>
+      <td>{{ n.guest_name }}</td>
+      <td>{{ n.check_in.strftime("%A, %d/%m") }}</td>
+      <td>{{ n.note }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="muted">Sem notas esta semana.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

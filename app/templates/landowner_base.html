@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Sollo — Landowner{% endblock %}</title>
+  <link rel="stylesheet" href="/static/fonts.css" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <nav class="topnav">
+    <span class="brand">Sollo</span>
+    <a href="/landowner/{{ token }}">Calendar</a>
+    <a href="/landowner/{{ token }}/monthly">Monthly Close-out</a>
+    <a href="/landowner/{{ token }}/weekly">Weekly Notes</a>
+  </nav>
+  <main class="container {% block container_class %}{% endblock %}">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

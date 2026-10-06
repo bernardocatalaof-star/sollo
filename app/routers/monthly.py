@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.analytics import financial_summary, landowner_justification, landowner_statement
 from app.config import settings
 from app.database import get_db
+from app.landowner import get_or_create_landowner_token
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -32,6 +33,9 @@ def monthly_view(
     next_month = 1 if month == 12 else month + 1
     next_year = year + 1 if month == 12 else year
 
+    landowner_token = get_or_create_landowner_token(db)
+    landowner_link = str(request.base_url).rstrip("/") + f"/landowner/{landowner_token}"
+
     return templates.TemplateResponse(
         "monthly.html",
         {
@@ -46,5 +50,6 @@ def monthly_view(
             "next_year": next_year,
             "next_month": next_month,
             "supplies_window": settings.supplies_rolling_window_months,
+            "landowner_link": landowner_link,
         },
     )

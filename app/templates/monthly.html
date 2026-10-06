@@ -9,6 +9,14 @@
   <a href="/monthly?year={{ next_year }}&month={{ next_month }}">next &rarr;</a>
 </div>
 
+<p class="muted">
+  Link para partilhar com o landowner (Calendar + Monthly Close-out + Weekly Notes, sem dados financeiros internos):
+  <a href="{{ landowner_link }}" target="_blank">{{ landowner_link }}</a>
+</p>
+<form class="inline" method="post" action="/landowner-link/regenerate" onsubmit="return confirm('Isto invalida o link atual -- quem o tiver deixa de conseguir acedê-lo. Continuar?')">
+  <button type="submit">Gerar novo link</button>
+</form>
+
 <h2>Owed to landowner</h2>
 <p class="muted">Land (overnight) fee for nights actually slept this month, plus cleaning fees for stays that checked out this month.</p>
 <table>

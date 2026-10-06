@@ -1,0 +1,66 @@
+{% extends "landowner_base.html" %}
+{% block title %}Monthly Close-out — Sollo{% endblock %}
+{% block content %}
+<h1>Monthly Close-out</h1>
+
+<div class="month-nav">
+  <a href="/landowner/{{ token }}/monthly?year={{ prev_year }}&month={{ prev_month }}">&larr; prev</a>
+  <strong>{{ year }}-{{ "%02d"|format(month) }}</strong>
+  <a href="/landowner/{{ token }}/monthly?year={{ next_year }}&month={{ next_month }}">next &rarr;</a>
+</div>
+
+<h2>Owed to landowner</h2>
+<p class="muted">Land (overnight) fee for nights actually slept this month, plus cleaning fees for stays that checked out this month.</p>
+<table>
+  <thead><tr><th>Cabin</th><th>Nights</th><th>Cleanings</th><th>Overnight total</th><th>Cleaning total</th><th>Owed</th></tr></thead>
+  <tbody>
+    {% for c in statement.by_cabin %}
+    <tr>
+      <td>{{ c.cabin_name }}</td>
+      <td>{{ c.nights }}</td>
+      <td>{{ c.cleanings }}</td>
+      <td>€{{ "%.2f"|format(c.overnight_total) }}</td>
+      <td>€{{ "%.2f"|format(c.cleaning_total) }}</td>
+      <td><strong>€{{ "%.2f"|format(c.total_owed) }}</strong></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">No stays checked out this month.</td></tr>
+    {% endfor %}
+  </tbody>
+  {% if statement.by_cabin %}
+  <tfoot>
+    <tr><td colspan="5"><strong>Total owed</strong></td><td><strong>€{{ "%.2f"|format(statement.total_owed) }}</strong></td></tr>
+  </tfoot>
+  {% endif %}
+</table>
+
+<h2>Justification</h2>
+<p class="muted">Every individual cleaning and night-slept date this month, per cabin.</p>
+{% for cabin in justification.by_cabin %}
+<h3>{{ cabin.cabin_name }}</h3>
+<div class="justification-grid">
+  <div>
+    <h4>Cleanings ({{ cabin.cleanings|length }})</h4>
+    <ul class="date-list">
+      {% for c in cabin.cleanings %}
+      <li>{{ c.date.strftime("%Y-%m-%d") }} — {{ c.guest_name or "Guest" }} <span class="muted">(€{{ "%.2f"|format(c.amount) }})</span></li>
+      {% else %}
+      <li class="muted">None this month.</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div>
+    <h4>Nights slept ({{ cabin.nights|length }})</h4>
+    <ul class="date-list">
+      {% for n in cabin.nights %}
+      <li>{{ n.date.strftime("%Y-%m-%d") }} — {{ n.guest_name or "Guest" }}</li>
+      {% else %}
+      <li class="muted">None this month.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% else %}
+<p class="muted">No activity this month.</p>
+{% endfor %}
+{% endblock %}

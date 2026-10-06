@@ -35,6 +35,11 @@ def next_week_bounds(sunday: date) -> tuple[date, date]:
     return week_start, week_end
 
 
+def current_week_start(today: date) -> date:
+    """Monday of the calendar week containing `today`."""
+    return today - timedelta(days=today.weekday())
+
+
 # Cleanings only happen Monday(0), Wednesday(2) or Friday(4) -- a checkout on
 # any other weekday rolls forward to the next one of those days. A checkout
 # that already falls on one of them needs no rolling (offset 0).

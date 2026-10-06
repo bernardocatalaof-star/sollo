@@ -1,0 +1,73 @@
+{% extends "landowner_base.html" %}
+{% block title %}Calendar — Sollo{% endblock %}
+{% block content %}
+<h1>Calendar</h1>
+
+<div class="month-nav">
+  <a href="/landowner/{{ token }}?year={{ prev_year }}&month={{ prev_month }}">&larr; prev</a>
+  <strong>{{ year }}-{{ "%02d"|format(month) }}</strong>
+  <a href="/landowner/{{ token }}?year={{ next_year }}&month={{ next_month }}">next &rarr;</a>
+</div>
+
+<div class="cal-scroll">
+  <div class="cal-grid">
+    <div class="cal-head-row">
+      <div class="cal-head">Mon</div>
+      <div class="cal-head">Tue</div>
+      <div class="cal-head">Wed</div>
+      <div class="cal-head">Thu</div>
+      <div class="cal-head">Fri</div>
+      <div class="cal-head">Sat</div>
+      <div class="cal-head">Sun</div>
+    </div>
+
+    {% for week in weeks %}
+    <div class="cal-week">
+      <div class="cal-week-daynums">
+        {% for cell in week.days %}
+        <div class="cal-daynum-cell {{ '' if cell.in_month else 'outside' }} {{ 'today' if cell.day == today else '' }}">
+          {{ cell.day.day }}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="cal-week-bars" style="grid-template-rows: repeat({{ week.lane_count if week.lane_count > 0 else 1 }}, 24px);">
+        {% for bar in week.bars %}
+        <div class="cal-bar"
+           style="grid-column: {{ bar.grid_start }} / {{ bar.grid_end }}; grid-row: {{ bar.lane + 1 }}; background: {{ bar.color }}33; border-color: {{ bar.color }}; color: {{ bar.color }};"
+           title="{{ bar.booking.effective_cabin.name }} — {{ bar.booking.guest_name or 'Guest' }} — {{ bar.booking.external_id }} — {{ bar.booking.nights }} noites{% if bar.booking.has_late_checkout %} — late checkout{% endif %}">
+          {{ bar.booking.guest_name or "Guest" }} <span class="cal-bar-cabin">· {{ bar.booking.effective_cabin.name }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<h2>Reservas deste mês</h2>
+<table>
+  <thead>
+    <tr><th>Hóspede</th><th>Referência</th><th>Cabin</th><th>Checkout</th><th>Noites</th><th>Late checkout</th></tr>
+  </thead>
+  <tbody>
+    {% set seen = [] %}
+    {% for week in weeks %}
+      {% for bar in week.bars %}
+        {% if bar.booking.id not in seen %}
+          {% set _ = seen.append(bar.booking.id) %}
+          <tr>
+            <td>{{ bar.booking.guest_name or "Guest" }}</td>
+            <td>{{ bar.booking.external_id }}</td>
+            <td>{{ bar.booking.effective_cabin.name }}</td>
+            <td>{{ bar.booking.effective_check_out }}</td>
+            <td>{{ bar.booking.nights }}</td>
+            <td>{% if bar.booking.has_late_checkout %}<span class="badge holiday">sim</span>{% endif %}</td>
+          </tr>
+        {% endif %}
+      {% endfor %}
+    {% else %}
+    <tr><td colspan="6" class="muted">Sem reservas este mês.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

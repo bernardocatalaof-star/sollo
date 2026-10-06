@@ -35,6 +35,7 @@ from app.routers import (
     expenses,
     extra_revenue,
     guidebook,
+    landowner,
     ledger,
     monthly,
     pnl,
@@ -70,6 +71,7 @@ app.include_router(calendar.router)
 app.include_router(expenses.router)
 app.include_router(extra_revenue.router)
 app.include_router(guidebook.router)
+app.include_router(landowner.router)
 app.include_router(ledger.router)
 app.include_router(monthly.router)
 app.include_router(pnl.router)

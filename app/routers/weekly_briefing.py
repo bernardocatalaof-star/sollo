@@ -7,19 +7,11 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.weekly_briefing import format_cleanings_message, format_notes_message
+from app.weekly_briefing import current_week_start, format_cleanings_message, format_notes_message
 from app.whatsapp import send_whatsapp_message
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-
-
-def _current_week_start(today: date) -> date:
-    """Monday of the calendar week containing `today` -- the default week
-    shown on this page, since that's the week most useful to check/test
-    against right now (unlike the automatic Sunday-night send, which always
-    reports on the week starting the NEXT day)."""
-    return today - timedelta(days=today.weekday())
 
 
 @router.get("/weekly-briefing")
@@ -30,7 +22,7 @@ def preview_weekly_briefing(
     error: str | None = None,
     db: Session = Depends(get_db),
 ):
-    week_start = week_start or _current_week_start(date.today())
+    week_start = week_start or current_week_start(date.today())
     week_end = week_start + timedelta(days=6)
     return templates.TemplateResponse(
         "weekly_briefing.html",
