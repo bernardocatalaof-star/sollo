@@ -8,7 +8,14 @@ from app.weekly_briefing import (
     next_week_bounds,
     should_send_weekly_briefing,
     upcoming_check_in_notes,
+    weekday_name_pt,
 )
+
+
+def test_weekday_name_pt_returns_portuguese_weekday_names():
+    assert weekday_name_pt(date(2026, 10, 5)) == "Segunda-feira"  # Monday
+    assert weekday_name_pt(date(2026, 10, 7)) == "Quarta-feira"  # Wednesday
+    assert weekday_name_pt(date(2026, 10, 11)) == "Domingo"  # Sunday
 
 
 def test_next_week_bounds_returns_the_monday_through_sunday_after_the_given_sunday():

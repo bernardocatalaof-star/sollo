@@ -8,11 +8,18 @@ from sqlalchemy.orm import Session
 from app.analytics import landowner_justification, landowner_statement
 from app.calendar_view import exclude_no_shows, month_grid
 from app.database import get_db
-from app.landowner import get_or_create_landowner_token, regenerate_landowner_token
-from app.weekly_briefing import cleanings_this_week, current_week_start, upcoming_check_in_notes
+from app.landowner import (
+    LANDOWNER_MIN_MONTH,
+    LANDOWNER_MIN_YEAR,
+    clamp_to_landowner_floor,
+    get_or_create_landowner_token,
+    regenerate_landowner_token,
+)
+from app.weekly_briefing import cleanings_this_week, current_week_start, upcoming_check_in_notes, weekday_name_pt
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+templates.env.filters["weekday_pt"] = weekday_name_pt
 
 
 def _valid_token(db: Session, token: str) -> bool:
@@ -67,6 +74,7 @@ def landowner_monthly(
     today = date.today()
     year = year or today.year
     month = month or today.month
+    year, month = clamp_to_landowner_floor(year, month)
     statement = landowner_statement(db, year, month)
     justification = landowner_justification(db, year, month)
 
@@ -74,6 +82,7 @@ def landowner_monthly(
     prev_year = year - 1 if month == 1 else year
     next_month = 1 if month == 12 else month + 1
     next_year = year + 1 if month == 12 else year
+    can_go_prev = (year, month) > (LANDOWNER_MIN_YEAR, LANDOWNER_MIN_MONTH)
 
     return templates.TemplateResponse(
         "landowner_monthly.html",
@@ -88,6 +97,7 @@ def landowner_monthly(
             "prev_month": prev_month,
             "next_year": next_year,
             "next_month": next_month,
+            "can_go_prev": can_go_prev,
         },
     )
 

@@ -1,18 +1,22 @@
 {% extends "landowner_base.html" %}
-{% block title %}Monthly Close-out — Sollo{% endblock %}
+{% block title %}Fecho do Mês — Sollo{% endblock %}
 {% block content %}
-<h1>Monthly Close-out</h1>
+<h1>Fecho do Mês</h1>
 
 <div class="month-nav">
-  <a href="/landowner/{{ token }}/monthly?year={{ prev_year }}&month={{ prev_month }}">&larr; prev</a>
+  {% if can_go_prev %}
+  <a href="/landowner/{{ token }}/monthly?year={{ prev_year }}&month={{ prev_month }}">&larr; anterior</a>
+  {% else %}
+  <span class="muted">&larr; anterior</span>
+  {% endif %}
   <strong>{{ year }}-{{ "%02d"|format(month) }}</strong>
-  <a href="/landowner/{{ token }}/monthly?year={{ next_year }}&month={{ next_month }}">next &rarr;</a>
+  <a href="/landowner/{{ token }}/monthly?year={{ next_year }}&month={{ next_month }}">seguinte &rarr;</a>
 </div>
 
-<h2>Owed to landowner</h2>
-<p class="muted">Land (overnight) fee for nights actually slept this month, plus cleaning fees for stays that checked out this month.</p>
+<h2>Valor devido ao landowner</h2>
+<p class="muted">Taxa de pernoita pelas noites efetivamente dormidas este mês, mais a taxa de limpeza das estadias que fizeram checkout este mês.</p>
 <table>
-  <thead><tr><th>Cabin</th><th>Nights</th><th>Cleanings</th><th>Overnight total</th><th>Cleaning total</th><th>Owed</th></tr></thead>
+  <thead><tr><th>Cabin</th><th>Noites</th><th>Limpezas</th><th>Total pernoita</th><th>Total limpeza</th><th>A pagar</th></tr></thead>
   <tbody>
     {% for c in statement.by_cabin %}
     <tr>
@@ -24,43 +28,43 @@
       <td><strong>€{{ "%.2f"|format(c.total_owed) }}</strong></td>
     </tr>
     {% else %}
-    <tr><td colspan="6" class="muted">No stays checked out this month.</td></tr>
+    <tr><td colspan="6" class="muted">Sem checkouts este mês.</td></tr>
     {% endfor %}
   </tbody>
   {% if statement.by_cabin %}
   <tfoot>
-    <tr><td colspan="5"><strong>Total owed</strong></td><td><strong>€{{ "%.2f"|format(statement.total_owed) }}</strong></td></tr>
+    <tr><td colspan="5"><strong>Total a pagar</strong></td><td><strong>€{{ "%.2f"|format(statement.total_owed) }}</strong></td></tr>
   </tfoot>
   {% endif %}
 </table>
 
-<h2>Justification</h2>
-<p class="muted">Every individual cleaning and night-slept date this month, per cabin.</p>
+<h2>Justificação</h2>
+<p class="muted">Todas as datas individuais de limpeza e de noites dormidas este mês, por cabin.</p>
 {% for cabin in justification.by_cabin %}
 <h3>{{ cabin.cabin_name }}</h3>
 <div class="justification-grid">
   <div>
-    <h4>Cleanings ({{ cabin.cleanings|length }})</h4>
+    <h4>Limpezas ({{ cabin.cleanings|length }})</h4>
     <ul class="date-list">
       {% for c in cabin.cleanings %}
-      <li>{{ c.date.strftime("%Y-%m-%d") }} — {{ c.guest_name or "Guest" }} <span class="muted">(€{{ "%.2f"|format(c.amount) }})</span></li>
+      <li>{{ c.date.strftime("%d/%m/%Y") }} — {{ c.guest_name or "Hóspede" }} <span class="muted">(€{{ "%.2f"|format(c.amount) }})</span></li>
       {% else %}
-      <li class="muted">None this month.</li>
+      <li class="muted">Nenhuma este mês.</li>
       {% endfor %}
     </ul>
   </div>
   <div>
-    <h4>Nights slept ({{ cabin.nights|length }})</h4>
+    <h4>Noites dormidas ({{ cabin.nights|length }})</h4>
     <ul class="date-list">
       {% for n in cabin.nights %}
-      <li>{{ n.date.strftime("%Y-%m-%d") }} — {{ n.guest_name or "Guest" }}</li>
+      <li>{{ n.date.strftime("%d/%m/%Y") }} — {{ n.guest_name or "Hóspede" }}</li>
       {% else %}
-      <li class="muted">None this month.</li>
+      <li class="muted">Nenhuma este mês.</li>
       {% endfor %}
     </ul>
   </div>
 </div>
 {% else %}
-<p class="muted">No activity this month.</p>
+<p class="muted">Sem atividade este mês.</p>
 {% endfor %}
 {% endblock %}

@@ -27,6 +27,10 @@ _WEEKDAY_NAMES_PT = [
 ]
 
 
+def weekday_name_pt(d: date) -> str:
+    return _WEEKDAY_NAMES_PT[d.weekday()]
+
+
 def next_week_bounds(sunday: date) -> tuple[date, date]:
     """(Monday, Sunday) of the week following the given Sunday -- the week a
     briefing sent that night reports on."""
@@ -119,7 +123,7 @@ def format_cleanings_message(db: Session, week_start: date, week_end: date) -> s
     lines = ["Limpezas esta semana:", ""]
     if cleanings:
         for entry in cleanings:
-            weekday_name = _WEEKDAY_NAMES_PT[entry.day.weekday()]
+            weekday_name = weekday_name_pt(entry.day)
             lines.append(f"* {weekday_name}: {', '.join(entry.cabin_names)}")
     else:
         lines.append("Sem checkouts agendados esta semana.")
@@ -133,7 +137,7 @@ def format_notes_message(db: Session, week_start: date, week_end: date) -> str:
     lines = [f"📝 Sollo — Notas semana {week_start:%d/%m} a {week_end:%d/%m}", ""]
     if notes:
         for n in notes:
-            weekday_name = _WEEKDAY_NAMES_PT[n.check_in.weekday()]
+            weekday_name = weekday_name_pt(n.check_in)
             lines.append(f"• {n.external_id} — {n.guest_name} (check-in {weekday_name} {n.check_in:%d/%m}): {n.note}")
     else:
         lines.append("Sem notas esta semana.")

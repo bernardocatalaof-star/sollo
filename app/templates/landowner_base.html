@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,9 +10,9 @@
 <body>
   <nav class="topnav">
     <span class="brand">Sollo</span>
-    <a href="/landowner/{{ token }}">Calendar</a>
-    <a href="/landowner/{{ token }}/monthly">Monthly Close-out</a>
-    <a href="/landowner/{{ token }}/weekly">Weekly Notes</a>
+    <a href="/landowner/{{ token }}">Calendário</a>
+    <a href="/landowner/{{ token }}/monthly">Fecho do Mês</a>
+    <a href="/landowner/{{ token }}/weekly">Notas da Semana</a>
   </nav>
   <main class="container {% block container_class %}{% endblock %}">
     {% block content %}{% endblock %}

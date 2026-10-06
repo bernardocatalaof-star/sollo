@@ -24,6 +24,17 @@ from app.settings_store import get_setting, set_setting
 
 LANDOWNER_TOKEN_SETTING_KEY = "landowner_token"
 
+# The landowner partnership only covers September 2026 onward -- the Monthly
+# Close-out never lets them page back before it.
+LANDOWNER_MIN_YEAR, LANDOWNER_MIN_MONTH = 2026, 9
+
+
+def clamp_to_landowner_floor(year: int, month: int) -> tuple[int, int]:
+    """Pulls year/month forward to September 2026 if it's any earlier."""
+    if (year, month) < (LANDOWNER_MIN_YEAR, LANDOWNER_MIN_MONTH):
+        return LANDOWNER_MIN_YEAR, LANDOWNER_MIN_MONTH
+    return year, month
+
 
 def get_or_create_landowner_token(db: Session) -> str:
     token = get_setting(db, LANDOWNER_TOKEN_SETTING_KEY)

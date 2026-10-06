@@ -1,24 +1,24 @@
 {% extends "landowner_base.html" %}
-{% block title %}Calendar — Sollo{% endblock %}
+{% block title %}Calendário — Sollo{% endblock %}
 {% block content %}
-<h1>Calendar</h1>
+<h1>Calendário</h1>
 
 <div class="month-nav">
-  <a href="/landowner/{{ token }}?year={{ prev_year }}&month={{ prev_month }}">&larr; prev</a>
+  <a href="/landowner/{{ token }}?year={{ prev_year }}&month={{ prev_month }}">&larr; anterior</a>
   <strong>{{ year }}-{{ "%02d"|format(month) }}</strong>
-  <a href="/landowner/{{ token }}?year={{ next_year }}&month={{ next_month }}">next &rarr;</a>
+  <a href="/landowner/{{ token }}?year={{ next_year }}&month={{ next_month }}">seguinte &rarr;</a>
 </div>
 
 <div class="cal-scroll">
   <div class="cal-grid">
     <div class="cal-head-row">
-      <div class="cal-head">Mon</div>
-      <div class="cal-head">Tue</div>
-      <div class="cal-head">Wed</div>
-      <div class="cal-head">Thu</div>
-      <div class="cal-head">Fri</div>
-      <div class="cal-head">Sat</div>
-      <div class="cal-head">Sun</div>
+      <div class="cal-head">Seg</div>
+      <div class="cal-head">Ter</div>
+      <div class="cal-head">Qua</div>
+      <div class="cal-head">Qui</div>
+      <div class="cal-head">Sex</div>
+      <div class="cal-head">Sáb</div>
+      <div class="cal-head">Dom</div>
     </div>
 
     {% for week in weeks %}
@@ -34,8 +34,8 @@
         {% for bar in week.bars %}
         <div class="cal-bar"
            style="grid-column: {{ bar.grid_start }} / {{ bar.grid_end }}; grid-row: {{ bar.lane + 1 }}; background: {{ bar.color }}33; border-color: {{ bar.color }}; color: {{ bar.color }};"
-           title="{{ bar.booking.effective_cabin.name }} — {{ bar.booking.guest_name or 'Guest' }} — {{ bar.booking.external_id }} — {{ bar.booking.nights }} noites{% if bar.booking.has_late_checkout %} — late checkout{% endif %}">
-          {{ bar.booking.guest_name or "Guest" }} <span class="cal-bar-cabin">· {{ bar.booking.effective_cabin.name }}</span>
+           title="{{ bar.booking.effective_cabin.name }} — {{ bar.booking.guest_name or 'Hóspede' }} — {{ bar.booking.external_id }} — {{ bar.booking.nights }} noites{% if bar.booking.has_late_checkout %} — late checkout{% endif %}">
+          {{ bar.booking.guest_name or "Hóspede" }} <span class="cal-bar-cabin">· {{ bar.booking.effective_cabin.name }}</span>
         </div>
         {% endfor %}
       </div>
@@ -56,10 +56,10 @@
         {% if bar.booking.id not in seen %}
           {% set _ = seen.append(bar.booking.id) %}
           <tr>
-            <td>{{ bar.booking.guest_name or "Guest" }}</td>
+            <td>{{ bar.booking.guest_name or "Hóspede" }}</td>
             <td>{{ bar.booking.external_id }}</td>
             <td>{{ bar.booking.effective_cabin.name }}</td>
-            <td>{{ bar.booking.effective_check_out }}</td>
+            <td>{{ bar.booking.effective_check_out.strftime("%d/%m/%Y") }}</td>
             <td>{{ bar.booking.nights }}</td>
             <td>{% if bar.booking.has_late_checkout %}<span class="badge holiday">sim</span>{% endif %}</td>
           </tr>
