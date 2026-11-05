@@ -256,8 +256,17 @@ def _extract_cabin_name(raw) -> str:
     return text or "Unassigned"
 
 
+def _normalize_status(raw: str) -> str:
+    """The Sheet exports human-readable statuses with spaces and mixed case
+    ("Pending payment", "Completed", "Cancelled"), but billable_states and the
+    rest of the app compare against snake_case ("pending_payment"). Spaces
+    collapse to underscores here so a row's actual status always matches,
+    regardless of which spelling the Sheet happens to use."""
+    return re.sub(r"\s+", "_", raw.strip().lower())
+
+
 def _row_is_billable(row: dict) -> bool:
-    status = str(row.get(settings.col_status, "")).strip().lower()
+    status = _normalize_status(str(row.get(settings.col_status, "")))
     return status in settings.billable_states_set
 
 
@@ -266,7 +275,7 @@ def _resolve_total_price(row: dict, status: str) -> float:
     status: a completed stay bills its full TOTAL, a still-pending one only
     what's actually been RECEIVED so far, and a cancelled one whatever was
     NET_PAID and kept (not refunded)."""
-    status = status.strip().lower()
+    status = _normalize_status(status)
     if status == "pending_payment":
         column = settings.col_price_received
     elif status == "cancelled":
@@ -317,7 +326,7 @@ def sync_bookings(db: Session) -> SyncResult:
             continue
 
         cabin = _get_or_create_cabin(db, _extract_cabin_name(row.get(settings.col_cabin, "")))
-        status = str(row.get(settings.col_status, "")).strip()
+        status = _normalize_status(str(row.get(settings.col_status, "")))
 
         existing = db.query(Booking).filter(Booking.external_id == external_id).first()
         values = dict(

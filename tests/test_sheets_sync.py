@@ -6,6 +6,7 @@ from app.sheets_sync import (
     _parse_date,
     _parse_optional_date,
     _resolve_total_price,
+    _row_is_billable,
     sync_bookings,
 )
 
@@ -81,6 +82,22 @@ def test_resolve_total_price_uses_received_column_for_pending_payment():
 def test_resolve_total_price_uses_net_paid_column_for_cancelled():
     row = {"total": "320.00", "received": "50.00", "net_paid": "50.00"}
     assert _resolve_total_price(row, "cancelled") == 50.0
+
+
+def test_resolve_total_price_handles_the_sheets_actual_human_readable_status():
+    # The real Sheet exports "Pending payment" (space, title case), not the
+    # snake_case "pending_payment" used internally -- a row like this used to
+    # be silently dropped by sync entirely (see _row_is_billable below) since
+    # "pending payment" != "pending_payment".
+    row = {"total": "320.00", "received": "100.00", "net_paid": "0.00"}
+    assert _resolve_total_price(row, "Pending payment") == 100.0
+
+
+def test_row_is_billable_matches_the_sheets_actual_human_readable_status():
+    assert _row_is_billable({"state": "Pending payment"}) is True
+    assert _row_is_billable({"state": "Completed"}) is True
+    assert _row_is_billable({"state": "Cancelled"}) is True
+    assert _row_is_billable({"state": "Declined"}) is False
 
 
 def test_sync_creates_bookings_and_cabins_from_local_csv(db_session, monkeypatch):
@@ -342,3 +359,26 @@ def test_sync_syncs_a_pending_payment_booking_with_received_revenue_and_normal_f
     fees = calculate_booking_fees(booking)
     assert fees.nights == 3
     assert fees.overnight_fee == round(3 * 19.8, 2)
+
+
+def test_sync_syncs_a_booking_whose_sheet_status_is_human_readable(db_session, monkeypatch, tmp_path):
+    # Regression test for a real bug: the Sheet actually exports "Pending
+    # payment" (capitalized, with a space), not "pending_payment" -- a row
+    # like this was silently skipped by sync entirely until the status
+    # comparison normalized spaces to underscores.
+    csv_path = tmp_path / "bookings.csv"
+    header = "reference,state,customer_first_name,customer_last_name,products,start_on,end_on,total,received,net_paid\n"
+    row = "NTV-Q9DX,Pending payment,Rani,Brulmans,Olivia,2027-01-08,2027-01-11,450.00,180.00,180.00\n"
+    csv_path.write_text(header + row)
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_source_mode", "local_csv")
+    monkeypatch.setattr("app.sheets_sync.settings.sheets_local_csv_path", str(csv_path))
+
+    result = sync_bookings(db_session)
+
+    booking = db_session.query(Booking).filter(Booking.external_id == "NTV-Q9DX").first()
+    assert booking is not None
+    assert result.created == 1
+    assert booking.status == "pending_payment"  # normalized for internal/template comparisons
+    assert booking.total_price == 180.0  # RECEIVED column, matching its pending-payment status
+    assert booking.skip_landowner_fees is False
+
