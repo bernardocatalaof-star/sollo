@@ -163,3 +163,109 @@ class ExtraRevenue(Base):
     description: Mapped[str] = mapped_column(String(300), default="")
     amount: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Operations: maintenance tasks, shopping list, consumables stock, gas bottles
+# and seasonal checklists. Everything here is managed from /tarefas, /compras
+# and /stock (see app/ops.py and app/routers/ops.py).
+# ---------------------------------------------------------------------------
+
+
+class OpsTask(Base):
+    """A maintenance / operations to-do. `owner` is who does it (Ben, Leo,
+    Limpeza...). When `contact` is set (an outside helper such as Carlos), the
+    task is shown as "<owner> falar com <contact>" -- the owner is the one who
+    has to get in touch, the contact is who actually does the job."""
+
+    __tablename__ = "ops_tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(300), default="")
+    place: Mapped[str] = mapped_column(String(60), default="Geral")
+    owner: Mapped[str] = mapped_column(String(60), default="")
+    contact: Mapped[str] = mapped_column(String(60), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(20), default="todo")  # todo | doing | done
+    urgent: Mapped[bool] = mapped_column(default=False)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Repeating tasks (e.g. clean the water filters every 6 months): marking
+    # one done creates the next one, due this many months later.
+    recurrence_months: Mapped[int | None] = mapped_column(nullable=True)
+    source: Mapped[str] = mapped_column(String(60), default="")  # e.g. "Inverno 2026"
+    done_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    done_by: Mapped[str] = mapped_column(String(60), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class OpsSupply(Base):
+    """A consumable that should never run out (kitchen roll, firewood...),
+    tracked with a simple traffic light. Marking it low/out puts it on the
+    shopping list automatically."""
+
+    __tablename__ = "ops_supplies"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), default="")
+    level: Mapped[str] = mapped_column(String(10), default="ok")  # ok | low | out
+    position: Mapped[int] = mapped_column(default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_by: Mapped[str] = mapped_column(String(60), default="")
+
+
+class OpsPurchase(Base):
+    """One line on the shopping list."""
+
+    __tablename__ = "ops_purchases"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item: Mapped[str] = mapped_column(String(300), default="")
+    place: Mapped[str] = mapped_column(String(60), default="Geral")
+    category: Mapped[str] = mapped_column(String(30), default="cabin")  # consumivel | cabin | obra
+    notes: Mapped[str] = mapped_column(String(500), default="")
+    urgent: Mapped[bool] = mapped_column(default=False)
+    bought: Mapped[bool] = mapped_column(default=False)
+    bought_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    task_id: Mapped[int | None] = mapped_column(ForeignKey("ops_tasks.id", ondelete="SET NULL"), nullable=True)
+    task: Mapped["OpsTask | None"] = relationship()
+    supply_id: Mapped[int | None] = mapped_column(ForeignKey("ops_supplies.id", ondelete="SET NULL"), nullable=True)
+    supply: Mapped["OpsSupply | None"] = relationship()
+    gas: Mapped[bool] = mapped_column(default=False)  # an "order gas bottle" line
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class GasBottle(Base):
+    __tablename__ = "gas_bottles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    label: Mapped[str] = mapped_column(String(80), default="")
+    status: Mapped[str] = mapped_column(String(20), default="check")  # full | in_use | empty | check
+    status_since: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    position: Mapped[int] = mapped_column(default=0)
+
+
+class GasLog(Base):
+    """How long a bottle lasted, from "em uso" to "vazia" -- used to estimate
+    when the bottle currently in use will run out."""
+
+    __tablename__ = "gas_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bottle_label: Mapped[str] = mapped_column(String(80), default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime)
+    emptied_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class SeasonTemplate(Base):
+    """A season change-over checklist (Inverno / Verão). During its reminder
+    months the Tarefas page shows a banner until it's activated (creating one
+    task per line) or dismissed for that year."""
+
+    __tablename__ = "season_templates"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(30), unique=True)
+    name: Mapped[str] = mapped_column(String(60), default="")
+    icon: Mapped[str] = mapped_column(String(10), default="")
+    months: Mapped[str] = mapped_column(String(30), default="")  # e.g. "10,11"
+    items: Mapped[str] = mapped_column(Text, default="")  # one task per line

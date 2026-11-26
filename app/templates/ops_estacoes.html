@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_ops_macros.html" import ops_tabs %}
+{% block title %}Estações e limpeza — Sollo{% endblock %}
+{% block container_class %}narrow{% endblock %}
+{% block content %}
+{{ ops_tabs('tarefas') }}
+<p><a href="/tarefas">← Tarefas</a></p>
+{% if saved %}<div class="notice">Guardado ✓</div>{% endif %}
+
+<h2>Listas de mudança de estação</h2>
+<p class="muted small">Nos meses indicados aparece um aviso nas Tarefas. "Criar tarefas" transforma cada linha numa tarefa. Uma linha pode começar pelo sítio (ex. <code>Barragem: Retirar SUP</code>); sem sítio vai para "Ambas".</p>
+
+{% for s in seasons %}
+<form method="post" action="/tarefas/estacoes/{{ s.key }}" class="stack season-form">
+  <h3>{{ s.icon }} {{ s.name }}
+    {% set m = season_marker(s.key) %}
+    {% if m == 'activated' %}<span class="badge good">Criado em {{ today.year }}</span>{% elif m == 'dismissed' %}<span class="badge good">Tratado em {{ today.year }}</span>{% endif %}
+  </h3>
+  <label>Meses do aviso (números, separados por vírgula)<input type="text" name="months" value="{{ s.months }}" /></label>
+  <textarea name="items" rows="{{ [s.items.splitlines()|length + 1, 6]|max }}">{{ s.items }}</textarea>
+  <div class="quick-row">
+    <button type="submit" class="secondary">Guardar lista</button>
+    <button type="submit" formaction="/tarefas/estacoes/{{ s.key }}/ativar" onclick="return confirm('Criar as tarefas de {{ s.name }} agora?')">Criar tarefas agora</button>
+  </div>
+</form>
+{% endfor %}
+
+<h2>Checklist de todas as limpezas</h2>
+<p class="muted small">Uma coisa por linha. Vai no resumo semanal da limpeza, junto com as tarefas atribuídas à "Limpeza".</p>
+<form method="post" action="/tarefas/limpeza-checklist" class="stack">
+  <textarea name="checklist" rows="5">{{ checklist }}</textarea>
+  <button type="submit" class="secondary">Guardar checklist</button>
+</form>
+{% endblock %}

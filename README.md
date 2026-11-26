@@ -45,6 +45,33 @@ summary.
   URLs. Edits go live on the same link immediately, so you only ever send it
   once.
 
+- **Operações** (mobile-first, in Portuguese):
+  - **Tarefas** (`/tarefas`) — maintenance to-dos grouped by place (Olivia,
+    Santiago, Ambas, Armazém, Casa técnica, Barragem, Geral). Each has who does
+    it (Ben / Leo / Limpeza) or an outside helper ("Leo falar com Carlos",
+    Paulo Linguiça, Azinheirinha), urgent flag, optional due date, notes, and an
+    optional repeat (every 1/3/6/12 months: marking it done creates the next
+    one). A quick "Apontar" box adds a task or a shopping item in one line.
+    Filter by person and generate a ready-to-send WhatsApp message for them.
+  - **Estações** (`/tarefas/estacoes`) — Inverno (reminder in Oct/Nov) and
+    Verão (May/Jun) change-over lists: a banner on Tarefas offers to turn
+    the list into tasks. Also the fixed "every cleaning" checklist, which is
+    appended to the weekly cleaning briefing together with open tasks
+    assigned to "Limpeza".
+  - **Compras** (`/compras`) — shopping list by category (Consumível / Cabin /
+    Obra), optionally linked to the task that needs it; shareable via WhatsApp.
+  - **Stock** (`/stock`) — consumables with a traffic light (Tem / Está a
+    acabar / Acabou; low/out adds them to Compras automatically, buying resets
+    them) and gas bottles (Em uso / Cheia / Vazia; Vazia orders a new one and
+    logs how long the bottle lasted, to estimate when the current one runs
+    out). A public link (`/stock/p/<token>`, no login) lets the cleaning
+    company mark stock and gas from their phone.
+  - Starting data (tasks, purchases, stock, season lists) is seeded once from
+    `app/ops_seed.py`.
+- **Password** — set `APP_PASSWORD` to require a login for the whole app
+  (one shared password; phones stay logged in for a year). The guest guide,
+  landowner link and cleaning stock link stay public.
+
 ## Setup
 
 ```bash

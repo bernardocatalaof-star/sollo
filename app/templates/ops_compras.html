@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "_ops_macros.html" import ops_tabs, place_select %}
+{% block title %}Compras — Sollo{% endblock %}
+{% block container_class %}narrow{% endblock %}
+{% block content %}
+{{ ops_tabs('compras') }}
+
+<form method="post" action="/compras" class="quick-add">
+  <input type="text" name="item" placeholder="O que é preciso comprar?" required autocomplete="off" />
+  <div class="quick-row">
+    <select name="category">{% for k, v in PURCHASE_CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if k == 'cabin' }}>{{ v }}</option>{% endfor %}</select>
+    {{ place_select() }}
+    <label class="check-label"><input type="checkbox" name="urgent" value="1" /> Urgente</label>
+    <button type="submit">Adicionar</button>
+  </div>
+</form>
+
+<div class="quick-row">
+  <span class="muted small">{{ count }} por comprar</span>
+  {% if count %}<a class="button-link" href="/compras/mensagem">📲 Enviar lista</a>{% endif %}
+</div>
+
+{% for key, items in by_category.items() if items %}
+<h3 class="group-title">{{ PURCHASE_CATEGORIES.get(key, key) }}</h3>
+<ul class="task-list">
+  {% for p in items %}
+  <li class="task {{ 'urgent' if p.urgent }}">
+    <form method="post" action="/compras/{{ p.id }}/comprado">
+      <button type="submit" class="check" aria-label="Comprado" title="Comprado"></button>
+    </form>
+    <div class="task-main">
+      <span class="task-title">{{ p.item }}</span>
+      <span class="task-meta">
+        {% if p.urgent %}<span class="badge">Urgente</span>{% endif %}
+        <span class="muted">{{ p.place }}</span>
+        {% if p.task %}<a href="/tarefas/{{ p.task.id }}" class="muted">· para: {{ p.task.title }}</a>{% endif %}
+        {% if p.supply %}<span class="muted">· stock</span>{% endif %}
+        {% if p.notes %}<span class="muted note">{{ p.notes }}</span>{% endif %}
+      </span>
+    </div>
+    <form method="post" action="/compras/{{ p.id }}/apagar" onsubmit="return confirm('Tirar da lista?')">
+      <button type="submit" class="icon-btn" aria-label="Apagar" title="Apagar">✕</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="muted">Nada para comprar 🙌</p>
+{% endfor %}
+
+{% if bought %}
+<details class="fold">
+  <summary>Comprado nos últimos 14 dias ({{ bought|length }})</summary>
+  <ul class="task-list done">
+    {% for p in bought %}
+    <li class="task">
+      <form method="post" action="/compras/{{ p.id }}/desfazer">
+        <button type="submit" class="check checked" aria-label="Desfazer" title="Desfazer"></button>
+      </form>
+      <div class="task-main"><span class="task-title">{{ p.item }}</span><span class="task-meta muted">{{ p.bought_at.strftime('%d/%m') }}</span></div>
+    </li>
+    {% endfor %}
+  </ul>
+</details>
+{% endif %}
+{% endblock %}

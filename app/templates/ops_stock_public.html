@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Stock — sollō</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="container narrow">
+    {% from "_ops_stock_lists.html" import stock_lists with context %}
+    <h1>sollō — stock</h1>
+    <p class="muted">Marquem o que está a acabar ou acabou. Obrigado!</p>
+    {% if ok %}<div class="notice">Registado ✓</div>{% endif %}
+    {{ stock_lists(supplies, gas, '/stock/p/' ~ token, False) }}
+  </main>
+</body>
+</html>

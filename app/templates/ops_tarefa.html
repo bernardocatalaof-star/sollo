@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "_ops_macros.html" import ops_tabs, place_select %}
+{% block title %}{{ task.title }} — Sollo{% endblock %}
+{% block container_class %}narrow{% endblock %}
+{% block content %}
+{{ ops_tabs('tarefas') }}
+<p><a href="/tarefas">← Tarefas</a></p>
+
+<form method="post" action="/tarefas/{{ task.id }}" class="stack">
+  <label>Tarefa<input type="text" name="title" value="{{ task.title }}" required /></label>
+  <label>Onde{{ place_select(selected=task.place) }}</label>
+  <label>Quem faz
+    <select name="owner">
+      <option value="">Por atribuir</option>
+      {% for o in OWNERS %}<option value="{{ o }}" {{ 'selected' if task.owner == o }}>{{ o }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Falar com (ajuda de fora)
+    <input type="text" name="contact" value="{{ task.contact }}" list="contacts" placeholder="ninguém" />
+    <datalist id="contacts">{% for c in CONTACTS %}<option value="{{ c }}">{% endfor %}</datalist>
+  </label>
+  <label>Estado
+    <select name="status">
+      <option value="todo" {{ 'selected' if task.status == 'todo' }}>Por fazer</option>
+      <option value="doing" {{ 'selected' if task.status == 'doing' }}>Em curso</option>
+      <option value="done" {{ 'selected' if task.status == 'done' }}>Feito</option>
+    </select>
+  </label>
+  <label class="check-label"><input type="checkbox" name="urgent" value="1" {{ 'checked' if task.urgent }} /> Urgente</label>
+  <label>Data limite<input type="date" name="due_date" value="{{ task.due_date.isoformat() if task.due_date else '' }}" /></label>
+  <label>Repete
+    <select name="recurrence_months">
+      <option value="">Não repete</option>
+      {% for m, label in [(1, 'Todos os meses'), (3, 'De 3 em 3 meses'), (6, 'De 6 em 6 meses'), (12, '1 vez por ano')] %}
+      <option value="{{ m }}" {{ 'selected' if task.recurrence_months == m }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Notas<textarea name="notes" rows="4">{{ task.notes }}</textarea></label>
+  {% if task.done_at %}<p class="muted small">Feito a {{ task.done_at.strftime('%d/%m/%Y') }}{% if task.done_by %} por {{ task.done_by }}{% endif %}</p>{% endif %}
+  {% if task.source %}<p class="muted small">Origem: {{ task.source }}</p>{% endif %}
+  <button type="submit">Guardar</button>
+</form>
+
+<h3>Precisa de comprar</h3>
+<ul class="plain-list">
+  {% for p in purchases %}
+  <li>{{ '✅' if p.bought else '🛒' }} {{ p.item }}</li>
+  {% else %}
+  <li class="muted">Nada.</li>
+  {% endfor %}
+</ul>
+<form method="post" action="/tarefas/{{ task.id }}/compra" class="inline">
+  <input type="text" name="item" placeholder="ex. tinta spray" required />
+  <select name="category">{% for k, v in PURCHASE_CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if k == 'obra' }}>{{ v }}</option>{% endfor %}</select>
+  <button type="submit" class="secondary">Pôr nas compras</button>
+</form>
+
+<form method="post" action="/tarefas/{{ task.id }}/apagar" onsubmit="return confirm('Apagar esta tarefa?')" class="delete-form">
+  <button type="submit" class="danger">Apagar tarefa</button>
+</form>
+{% endblock %}

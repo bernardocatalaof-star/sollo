@@ -6,6 +6,12 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/sollo.db"
 
+    # Password protecting the whole app (finances, guest phone numbers...).
+    # Empty = no login (local use only). Public links stay open without it:
+    # the guest guidebook (/guide/...), the landowner link (/landowner/...)
+    # and the cleaning company's stock link (/stock/p/...).
+    app_password: str = ""
+
     sheets_source_mode: str = "local_csv"  # local_csv | csv_url | service_account | oauth_user
 
     sheets_local_csv_path: str = "./data/sample_bookings.csv"

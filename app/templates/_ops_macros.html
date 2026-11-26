@@ -1,0 +1,40 @@
+{% macro ops_tabs(active) %}
+<nav class="ops-tabs">
+  <a href="/tarefas" class="{{ 'active' if active == 'tarefas' }}">🔧 Tarefas</a>
+  <a href="/compras" class="{{ 'active' if active == 'compras' }}">🛒 Compras</a>
+  <a href="/stock" class="{{ 'active' if active == 'stock' }}">📦 Stock</a>
+</nav>
+{% endmacro %}
+
+{% macro who_select(name="who", selected="", blank_label="Quem?") %}
+<select name="{{ name }}">
+  <option value="">{{ blank_label }}</option>
+  {% for o in OWNERS %}<option value="{{ o }}" {{ 'selected' if selected == o }}>{{ o }}</option>{% endfor %}
+  {% for c in CONTACTS %}<option value="contact:{{ c }}" {{ 'selected' if selected == 'contact:' ~ c }}>Leo falar com {{ c }}</option>{% endfor %}
+</select>
+{% endmacro %}
+
+{% macro place_select(name="place", selected="Geral") %}
+<select name="{{ name }}">
+  {% for p in PLACES %}<option value="{{ p }}" {{ 'selected' if selected == p }}>{{ p }}</option>{% endfor %}
+</select>
+{% endmacro %}
+
+{% macro task_row(t, quem, today) %}
+<li class="task {{ 'urgent' if t.urgent }} {{ 'doing' if t.status == 'doing' }}">
+  <form method="post" action="/tarefas/{{ t.id }}/feito">
+    <input type="hidden" name="quem" value="{{ quem }}" />
+    <button type="submit" class="check" aria-label="Marcar como feito" title="Marcar como feito"></button>
+  </form>
+  <a class="task-main" href="/tarefas/{{ t.id }}">
+    <span class="task-title">{{ t.title }}</span>
+    <span class="task-meta">
+      {% if t.urgent %}<span class="badge">Urgente</span>{% endif %}
+      {% if t.status == 'doing' %}<span class="badge holiday">Em curso</span>{% endif %}
+      <span class="who {{ 'contact' if t.contact }}">{{ task_who(t) }}</span>
+      {% if t.due_date %}<span class="{{ 'bad' if t.due_date < today else 'muted' }}">· {{ t.due_date.strftime('%d/%m/%Y') }}</span>{% endif %}
+      {% if t.recurrence_months %}<span class="muted">· ↻ {{ t.recurrence_months }} meses</span>{% endif %}
+    </span>
+  </a>
+</li>
+{% endmacro %}
