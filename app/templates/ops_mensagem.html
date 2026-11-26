@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Sollo{% endblock %}
+{% block container_class %}narrow{% endblock %}
+{% block content %}
+<p><a href="{{ back }}">← Voltar</a></p>
+<h2>{{ title }}</h2>
+<textarea id="msg" rows="16" class="message-box">{{ text }}</textarea>
+<div class="quick-row">
+  <a class="button-link" href="{{ share_url }}" target="_blank" rel="noopener" onclick="this.href='https://wa.me/?text='+encodeURIComponent(document.getElementById('msg').value)">📲 Abrir no WhatsApp</a>
+  <button type="button" class="secondary" onclick="copyMsg(this)">Copiar</button>
+</div>
+<p class="muted small">Podes editar o texto antes de copiar.</p>
+<script>
+  function copyMsg(btn) {
+    const box = document.getElementById("msg");
+    box.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(box.value) : Promise.reject())
+      .catch(() => document.execCommand("copy"))
+      .finally(() => { btn.textContent = "Copiado ✓"; });
+  }
+</script>
+{% endblock %}

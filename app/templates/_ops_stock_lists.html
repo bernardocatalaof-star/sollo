@@ -1,0 +1,50 @@
+{# Shared by /stock (owners) and /stock/p/<token> (cleaning company). #}
+{% macro stock_lists(supplies, gas, base, owner_view) %}
+<h3 class="group-title">Consumíveis</h3>
+<ul class="stock-list">
+  {% for s in supplies %}
+  <li class="stock-item level-{{ s.level }}">
+    <span class="stock-name">{{ s.name }}</span>
+    <form method="post" action="{{ base }}/{{ s.id }}{{ '/nivel' if owner_view }}" class="levels">
+      {% for key, label in SUPPLY_LEVELS.items() %}
+      <button type="submit" name="level" value="{{ key }}" class="level-btn {{ key }} {{ 'on' if s.level == key }}">{{ label }}</button>
+      {% endfor %}
+    </form>
+    {% if owner_view %}
+    <form method="post" action="/stock/{{ s.id }}/apagar" onsubmit="return confirm('Tirar {{ s.name }} da lista?')">
+      <button type="submit" class="icon-btn" aria-label="Apagar" title="Apagar">✕</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+
+<h3 class="group-title">Botijas de gás</h3>
+{% if not gas.has_reserve and gas.bottles %}
+<div class="notice error small">Não há nenhuma botija cheia de reserva{% if gas.order_pending %} — já está na lista de compras{% endif %}.</div>
+{% endif %}
+<ul class="stock-list">
+  {% for b in gas.bottles %}
+  <li class="stock-item gas-{{ b.status }}">
+    <span class="stock-name">{{ b.label }}{% if owner_view %}<span class="muted small"> · desde {{ b.status_since.strftime('%d/%m') }}</span>{% endif %}</span>
+    <form method="post" action="{{ base }}/gas/{{ b.id }}" class="levels">
+      {% for key in ['in_use', 'full', 'empty'] %}
+      <button type="submit" name="status" value="{{ key }}" class="level-btn gas {{ key }} {{ 'on' if b.status == key }}">{{ GAS_STATUSES[key] }}</button>
+      {% endfor %}
+    </form>
+    {% if owner_view %}
+    <form method="post" action="/stock/gas/{{ b.id }}/apagar" onsubmit="return confirm('Apagar {{ b.label }}?')">
+      <button type="submit" class="icon-btn" aria-label="Apagar" title="Apagar">✕</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% if owner_view %}
+<p class="muted small">
+  {% if gas.avg_days %}Uma botija tem durado em média <strong>{{ gas.avg_days }} dias</strong>.{% if gas.runs_out_around %} A que está em uso deve acabar por volta de <strong>{{ gas.runs_out_around.strftime('%d/%m') }}</strong>.{% endif %}
+  {% else %}Quando uma botija passar de "Em uso" a "Vazia", a Dashboard começa a calcular quanto tempo dura cada uma.{% endif %}
+  Marcar "Vazia" põe "Encomendar botija de gás" nas compras.
+</p>
+{% endif %}
+{% endmacro %}

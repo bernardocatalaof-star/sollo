@@ -128,6 +128,12 @@ def format_cleanings_message(db: Session, week_start: date, week_end: date) -> s
     else:
         lines.append("Sem checkouts agendados esta semana.")
 
+    # Extra jobs for the cleaning company (e.g. destroy a bees' nest) and the
+    # fixed every-clean checklist, both managed on /tarefas.
+    from app.ops import cleaning_extra_lines
+
+    lines += cleaning_extra_lines(db, week_start)
+
     return "\n".join(lines)
 
 

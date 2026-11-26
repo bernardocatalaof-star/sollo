@@ -38,9 +38,12 @@ from app.routers import (
     landowner,
     ledger,
     monthly,
+    ops as ops_router,
     pnl,
     weekly_briefing,
 )
+from app import auth_gate
+from app.ops_seed import seed_ops
 from app.settings_store import get_setting, set_setting
 from app.sheets_sync import oauth_is_connected
 from app.weekly_briefing import (
@@ -60,11 +63,19 @@ run_schema_migrations(engine)
 backfill_cabin_guide_tokens(engine)
 run_data_fixes(engine)
 seed_cabin_extra_sections(engine)
+_seed_db = SessionLocal()
+try:
+    seed_ops(_seed_db)
+finally:
+    _seed_db.close()
 
 app = FastAPI(title="Sollo — Guest & Operations Management")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
+app.middleware("http")(auth_gate.password_gate)
+app.include_router(auth_gate.router)
+app.include_router(ops_router.router)
 app.include_router(auth.router)
 app.include_router(bookings.router)
 app.include_router(calendar.router)

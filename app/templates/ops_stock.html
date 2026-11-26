@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_ops_macros.html" import ops_tabs %}
+{% from "_ops_stock_lists.html" import stock_lists with context %}
+{% block title %}Stock — Sollo{% endblock %}
+{% block container_class %}narrow{% endblock %}
+{% block content %}
+{{ ops_tabs('stock') }}
+<p class="muted small">Toca no estado de cada coisa. "Está a acabar" ou "Acabou" põe-na automaticamente na <a href="/compras">lista de compras</a>; quando a compra é marcada como feita, volta a "Tem".</p>
+
+{{ stock_lists(supplies, gas, '/stock', True) }}
+
+<form method="post" action="/stock" class="inline">
+  <input type="text" name="name" placeholder="Novo consumível (ex. café)" required />
+  <button type="submit" class="secondary">Adicionar</button>
+</form>
+<form method="post" action="/stock/gas" class="inline">
+  <input type="text" name="label" placeholder="Nova botija (ex. Botija 3)" required />
+  <button type="submit" class="secondary">Adicionar botija</button>
+</form>
+
+<h3>Link para a limpeza</h3>
+<p class="muted small">Envia este link à empresa de limpeza. Abre no telemóvel sem palavra-passe e só deixa marcar o stock e o gás.</p>
+<input type="text" readonly value="{{ public_url }}" onclick="this.select()" class="full" />
+<form method="post" action="/stock/link/regenerar" onsubmit="return confirm('O link antigo deixa de funcionar. Continuar?')" class="inline">
+  <button type="submit" class="secondary">Gerar link novo</button>
+</form>
+{% endblock %}
